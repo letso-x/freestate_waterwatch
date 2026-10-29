@@ -1,0 +1,16 @@
+@WaterWatch.Api_HostAddress = http://localhost:5100
+
+POST {{WaterWatch.Api_HostAddress}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Burst water pipe",
+  "description": "Water is flowing continuously from a damaged pipe.",
+  "location": "Nelson Mandela Drive, Bloemfontein",
+  "latitude": -29.12,
+  "longitude": 26.21
+}
+
+###
+GET {{WaterWatch.Api_HostAddress}}/api/incidents?page=1&pageSize=50
+Accept: application/json

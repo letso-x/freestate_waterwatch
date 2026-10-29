@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WaterWatch.Api/WaterWatch.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WaterWatch.Api.Tests/WaterWatch.Api.Tests.csproj" />
+  </Folder>
+</Solution>
