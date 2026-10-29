@@ -13,6 +13,8 @@ export interface CreateIncidentRequest {
   title: string
   description: string
   location: string
+  latitude?: number
+  longitude?: number
 }
 
 export type FormErrors = Partial<Record<keyof CreateIncidentRequest, string>>
@@ -20,12 +22,18 @@ export type FormErrors = Partial<Record<keyof CreateIncidentRequest, string>>
 export function validateIncident(input: CreateIncidentRequest): FormErrors {
   const errors: FormErrors = {}
   const rules = { title: [3, 150], description: [10, 2000], location: [3, 300] } as const
-  for (const field of Object.keys(rules) as (keyof CreateIncidentRequest)[]) {
+  for (const field of Object.keys(rules) as (keyof typeof rules)[]) {
     const [min, max] = rules[field]
     const length = input[field].trim().length
     if (length < min) errors[field] = `Enter at least ${min} characters.`
     else if (input[field].length > max) errors[field] = `Use ${max} characters or fewer.`
   }
+  if ((input.latitude != null) !== (input.longitude != null)) {
+    errors.latitude = 'Supply both latitude and longitude, or clear both.'
+    errors.longitude = 'Supply both latitude and longitude, or clear both.'
+  }
+  if (input.latitude != null && (!Number.isFinite(input.latitude) || Math.abs(input.latitude) > 90)) errors.latitude = 'Latitude must be between -90 and 90.'
+  if (input.longitude != null && (!Number.isFinite(input.longitude) || Math.abs(input.longitude) > 180)) errors.longitude = 'Longitude must be between -180 and 180.'
   return errors
 }
 

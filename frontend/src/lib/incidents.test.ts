@@ -27,3 +27,11 @@ describe('incident rules', () => {
     expect(summarize([])).toEqual({ total: 0, reported: 0, today: 0, locations: 0 })
   })
 })
+
+it('validates paired coordinates using the existing API limits', () => {
+  const input = { title: 'Burst pipe', description: 'A damaged water pipe.', location: 'Bloemfontein' }
+  expect(validateIncident({ ...input, latitude: -29 })).toHaveProperty('longitude')
+  expect(validateIncident({ ...input, latitude: 91, longitude: 26 })).toHaveProperty('latitude')
+  expect(validateIncident({ ...input, latitude: -29, longitude: Number.NaN })).toHaveProperty('longitude')
+  expect(validateIncident({ ...input, latitude: -29.12, longitude: 26.21 })).toEqual({})
+})

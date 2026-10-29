@@ -5,10 +5,12 @@ const baseUrl = configuredBaseUrl?.replace(/\/+$/, '')
 
 export class ApiError extends Error {
   public readonly fieldErrors: FormErrors
-  constructor(message: string, fieldErrors: FormErrors = {}) {
+  public readonly status?: number
+  constructor(message: string, fieldErrors: FormErrors = {}, status?: number) {
     super(message)
     this.name = 'ApiError'
     this.fieldErrors = fieldErrors
+    this.status = status
   }
 }
 
@@ -33,11 +35,11 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
     const fields: FormErrors = {}
     for (const [key, messages] of Object.entries(problem.errors ?? {})) {
       const field = key.toLocaleLowerCase() as keyof CreateIncidentRequest
-      if (['title', 'description', 'location'].includes(field)) fields[field] = messages.join(' ')
+      if (['title', 'description', 'location', 'latitude', 'longitude'].includes(field)) fields[field] = messages.join(' ')
     }
     throw new ApiError(response.status >= 500
       ? 'The incident service is temporarily unavailable. Please try again shortly.'
-      : problem.detail ?? problem.title ?? `The request failed (${response.status}).`, fields)
+      : problem.detail ?? problem.title ?? `The request failed (${response.status}).`, fields, response.status)
   }
   return response.json() as Promise<T>
 }
@@ -59,4 +61,13 @@ export function createIncident(input: CreateIncidentRequest): Promise<Incident> 
   return request<Incident>('/api/incidents', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
   })
+}
+
+export function getIncident(id: string, signal?: AbortSignal): Promise<Incident> {
+  if (!isIncidentReference(id)) return Promise.reject(new ApiError('Enter the full report reference shown on your confirmation.', {}, 400))
+  return request<Incident>(`/api/incidents/${encodeURIComponent(id.trim())}`, { signal })
+}
+
+export function isIncidentReference(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim())
 }

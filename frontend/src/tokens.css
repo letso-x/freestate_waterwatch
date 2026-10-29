@@ -1,0 +1,25 @@
+/* Prototype design values inspired by the named colours on Mangaung's official About page.
+   These HEX values are WaterWatch choices, not verified municipal specifications. */
+:root {
+  --brand-green: #245c36;
+  --brand-green-hover: #194526;
+  --brand-orange: #d46a14;
+  --brand-orange-ink: #813b08;
+  --charcoal: #252a27;
+  --nav-surface: #232924;
+  --text: #26352c;
+  --text-muted: #526259;
+  --text-soft: #66726a;
+  --surface: #ffffff;
+  --page: #f7f8f4;
+  --surface-muted: #eff3ed;
+  --surface-green: #eaf3e8;
+  --surface-orange: #fff1df;
+  --border: #d6dfd3;
+  --nav-text: #eef4ee;
+  --nav-muted: #bdcfc0;
+  --focus: #9b4b0c;
+  --danger: #a3392c;
+  --danger-surface: #fff1ec;
+  --danger-border: #ebc8bf;
+}

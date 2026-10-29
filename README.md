@@ -1,6 +1,6 @@
 # WaterWatch Free State
 
-A municipal incident dashboard built with React, Vite, TypeScript and Tailwind CSS, backed by the existing ASP.NET Core (.NET 10), EF Core and PostgreSQL API. The API request path remains Controller → IncidentService → WaterWatchDbContext. Authentication, WhatsApp, IoT, maps, incident assignment and status updates are outside the current scope.
+A municipal incident dashboard built with React, Vite, TypeScript and Tailwind CSS, backed by the existing ASP.NET Core (.NET 10), EF Core and PostgreSQL API. The API request path remains Controller → IncidentService → WaterWatchDbContext. Authentication, WhatsApp, IoT, media uploads, incident assignment and status updates are outside the current scope. Resident reporting now includes map/GPS coordinate selection.
 
 
 ## Start both applications (Task 2)
@@ -34,16 +34,16 @@ Dashboard: http://localhost:5173
 
 Vite uses port 5173 with `strictPort` enabled: it fails clearly if that port is occupied instead of silently selecting a port rejected by CORS. In Development, the API explicitly allows `http://localhost:5173` and `http://127.0.0.1:5173`; it permits GET/POST and required request headers without credentialed CORS or wildcard origins. Other environments have no allowed origins unless configured via `Cors:AllowedOrigins` (for example `Cors__AllowedOrigins__0=https://your-dashboard.example`). CORS is not authentication. Keep this unauthenticated MVP in the intended development/demo environment.
 
-## Dashboard behavior
+## Current public and municipal experiences
 
-- The operational view contains only records returned by the API. Empty databases show an honest empty state. Test fixtures are confined to `*.test.ts(x)` files.
-- Every GET page is fetched before summaries are calculated. Summary cards count stored records, `Reported` statuses, reports created today in `Africa/Johannesburg`, and distinct location text values. Location strings are not geocoded or treated as municipalities.
-- Search matches title, description, location or incident reference. Status options follow the actual API statuses; currently the backend only supports `Reported`.
-- Each incident shows its title, description (expandable for long text), location, status, creation time in SAST, and a citizen-report source label.
-- The report dialog validates the same title/description/location lengths as the API, trims text, disables repeated submission while saving and retains input on failure. No browser storage is used for incidents.
-- A successful POST clears filters and refreshes records. If that refresh fails, the confirmed saved report remains visible with an error and retry action; it is not submitted a second time.
-- Loading, initial empty, filtered empty, failed fetch, retry, failed submission and success states are implemented. Use Refresh to retrieve reports created elsewhere; there is no simulated live feed or automatic polling.
-- Responsive layouts, a skip link, visible focus states and a native modal dialog support keyboard and smaller-screen use. Browser visual QA is still required because of the tooling limitation below.
+The existing dashboard and API were extended, not restarted. See [Task 2 revision details](docs/TASK2_REVISION.md) for scope, branding references, location behavior and remaining backend requirements.
+
+- Residents: `/report`, `/report/success` and `/track`. Report independently, retain a full UUID reference and look up the stored report.
+- Municipal personnel: `/operations` and `/operations/incidents/:id`. Monitor, search, filter and review real reports. Public submission was moved out of this workspace.
+- Shared prototype design tokens use Mangaung-inspired green/orange/charcoal. Their HEX values are prototype choices, not verified official values. Both workspaces display Hackathon Prototype and no-endorsement notices.
+- Map pins, keyboard map-centre selection, manual coordinates and permission-based GPS use the existing coordinate fields. Photos are explicitly unavailable pending attachment endpoints, object storage and a future attachment migration.
+- A minimal read-only GET `/api/incidents/{id}` supports tracking and details without downloading the incident list. Existing list/POST contracts and migrations remain unchanged.
+- Routes separate the user experiences, not access permissions. The prototype has no authentication. Static hosting needs SPA fallback to `/index.html` for direct route loads.
 
 ## Task 2 build and test commands
 
@@ -142,7 +142,7 @@ The live test inserts one temporary incident, verifies its committed row and API
 - Generated an idempotent PostgreSQL script at `src/WaterWatch.Api/Data/Migrations/InitialCreate.sql`.
 - Applied `20261029171144_InitialCreate` successfully to Supabase. The live test created an incident through POST, verified the committed PostgreSQL row through a separate EF scope, retrieved it through GET, and cleaned up the temporary report. Credentials were read from the Windows user environment without being printed or written to the repository.
 
-## Task 2 verification on 29 October 2026
+## Previous Task 2 baseline verification on 29 October 2026
 
 - `dotnet build WaterWatch.slnx --no-restore`: passed, 0 warnings, 0 errors.
 - Backend tests with the saved Supabase connection: 19 passed, 0 failed, 0 skipped. This includes all 14 existing tests and 5 CORS checks.
@@ -152,3 +152,9 @@ The live test inserts one temporary incident, verifies its committed row and API
 - Full process restart: stopped both API and Vite, restarted both, then retrieved the same Supabase incident UUID created before shutdown. The temporary verification row was removed after the check.
 - No PostgreSQL migration, model, controller contract or database provider changes were made.
 - **Browser QA limitation:** the in-app browser bridge timed out. Windows Computer Use then stopped because it could not determine Chrome's current URL reliably enough to enforce its browser policy. Actual browser form submission, visual/mobile inspection and browser-console CORS checks remain unverified. Passing HTTP CORS checks and jsdom interaction tests do not substitute for those browser checks. To complete manual QA, open http://localhost:5173, submit a report, confirm it appears, test search/status filtering, resize to a mobile width, and inspect DevTools Console for CORS errors.
+
+## Current Task 2 revision verification — 29 October 2026
+
+The split resident/operations implementation builds successfully. Backend: 21 passed, 0 failed, 0 skipped (including existing Supabase tests); frontend: 32 passed, 0 failed. Backend build: 0 warnings, 0 errors. Frontend TypeScript/Vite build: passed. Direct loading of all five React routes returned 200 SPA documents; live lookup/preflight CORS checks passed. Database model and migrations are unchanged.
+
+See [revision scope and verification](docs/TASK2_REVISION.md) for the remaining photo backend requirements, unsupported management features and browser/device QA limits. The browser webview failed to attach, so physical GPS, visual/mobile rendering and browser-console checks remain unverified.

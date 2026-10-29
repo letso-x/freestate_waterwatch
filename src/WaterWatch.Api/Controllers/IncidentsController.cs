@@ -18,6 +18,16 @@ public sealed class IncidentsController(IncidentService service) : ControllerBas
     public async Task<ActionResult<Incident>> Create(CreateIncidentRequest request, CancellationToken cancellationToken) =>
         StatusCode(StatusCodes.Status201Created, await service.CreateAsync(request, cancellationToken));
 
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<Incident>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<Incident>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var incident = await service.GetByIdAsync(id, cancellationToken);
+        return incident is null ? NotFound() : Ok(incident);
+    }
+
     [HttpGet]
     [ProducesResponseType<List<Incident>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -28,4 +38,3 @@ public sealed class IncidentsController(IncidentService service) : ControllerBas
         CancellationToken cancellationToken = default) =>
         Ok(await service.GetAsync(page, pageSize, cancellationToken));
 }
-

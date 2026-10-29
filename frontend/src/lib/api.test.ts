@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, createIncident, getIncidents } from './api'
+import { ApiError, createIncident, getIncident, getIncidents } from './api'
 import type { Incident } from './incidents'
 
 const row = (id: number): Incident => ({
@@ -41,4 +41,19 @@ describe('API client', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ records: [] })))
     await expect(getIncidents()).rejects.toBeInstanceOf(ApiError)
   })
+})
+
+it('uses the exact reference endpoint for lookup', async () => {
+  const id = '40ac8cb2-20d8-4bfa-8f4d-74f466767236'
+  const fetch = vi.fn().mockResolvedValue(Response.json({ ...row(1), id }))
+  vi.stubGlobal('fetch', fetch)
+  await expect(getIncident(id)).resolves.toMatchObject({ id })
+  expect(fetch).toHaveBeenCalledWith('http://localhost:5100/api/incidents/' + id, expect.any(Object))
+})
+
+it('does not call the API for an invalid reference', async () => {
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  await expect(getIncident('short-reference')).rejects.toThrow('full report reference')
+  expect(fetch).not.toHaveBeenCalled()
 })

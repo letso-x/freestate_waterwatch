@@ -18,6 +18,9 @@ public sealed class IncidentService(WaterWatchDbContext db)
         await db.SaveChangesAsync(cancellationToken);
         return incident;
     }
+    public Task<Incident?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        db.Incidents.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+
     public Task<List<Incident>> GetAsync(int page, int pageSize, CancellationToken cancellationToken) =>
         db.Incidents.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
