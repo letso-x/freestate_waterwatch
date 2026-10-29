@@ -18,9 +18,13 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options => options.AddPolicy("MunicipalDashboard", policy =>
+    policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST").AllowAnyHeader()));
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseCors("MunicipalDashboard");
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -29,4 +33,3 @@ if (app.Environment.IsDevelopment())
 app.MapControllers();
 app.Run();
 public partial class Program;
-
