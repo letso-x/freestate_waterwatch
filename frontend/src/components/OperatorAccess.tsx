@@ -1,8 +1,9 @@
 import { createContext, useContext, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { Droplets, ShieldCheck } from 'lucide-react'
 import { getIncidents, setOperatorToken, clearOperatorToken } from '../lib/api'
-import { PrototypeNotice } from './PublicLayout'
+import { ProductFooter } from './PublicLayout'
 
 const OperatorContext = createContext<{ authorized: boolean; signIn: () => void; signOut: () => void }>({ authorized: false, signIn: () => {}, signOut: () => {} })
 export function OperatorProvider({ children }: { children: ReactNode }) {
@@ -18,9 +19,9 @@ export function OperatorGate({ children }: { children: ReactNode }) {
     event.preventDefault(); setError(''); setBusy(true)
     setOperatorToken(token)
     try { await getIncidents(); setToken(''); signIn() }
-    catch (cause) { clearOperatorToken(); setError(cause instanceof Error ? cause.message : 'Operator access could not be verified.') }
+    catch (cause) { clearOperatorToken(); setError(cause instanceof Error ? cause.message : 'We couldn’t verify your access. Please try again.') }
     finally { setBusy(false) }
   }
-  if (authorized) return <><div className="operator-session"><span>Demo operator session · credential kept in memory only</span><button className="text-button" onClick={signOut}>Sign out</button></div>{children}</>
-  return <><PrototypeNotice /><main className="public-main" tabIndex={-1}><span className="eyebrow">MUNICIPAL OPERATIONS</span><h1>Operator access</h1><p className="intro-copy">Enter the demo operator token configured on the API. Public reporting and tracking do not require this token.</p><form className="tracking-form" onSubmit={submit}><label htmlFor="operator-token">Demo operator token</label><input id="operator-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required minLength={32} disabled={busy} /><button className="button button-primary" disabled={busy}>{busy ? 'Verifying…' : 'Open operations'}</button>{error && <p role="alert" className="field-error">{error}</p>}</form><p className="service-note">Local hackathon access only. Reloading the page clears the session. Configure a token with scripts/Initialize-DemoOperator.ps1; never put it in a VITE_ variable.</p><Link className="text-button" to="/report">Return to resident reporting</Link></main></>
+  if (authorized) return <><div className="operator-session"><span>Staff access</span><button className="text-button" onClick={signOut}>Sign out</button></div>{children}</>
+  return <div className="staff-login-shell"><header className="public-header"><Link to="/report" className="brand"><span className="brand-symbol"><Droplets size={26} /></span><span>WaterWatch<small>FREE STATE</small></span></Link><Link className="text-button" to="/report">Resident portal</Link></header><main className="public-main staff-login" tabIndex={-1}><span className="signin-symbol" aria-hidden="true"><ShieldCheck size={27} /></span><span className="eyebrow">WATER MANAGEMENT</span><h1>Staff sign in</h1><p className="intro-copy">Review reports, coordinate maintenance and keep communities informed.</p><form className="tracking-form" onSubmit={submit}><label htmlFor="operator-token">Staff access key</label><input id="operator-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required minLength={32} disabled={busy} /><button className="button button-primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>{error && <p role="alert" className="field-error">{error}</p>}</form><p className="signin-help">Ask your team administrator for an access key. You’ll need to sign in again if you refresh or close this page.</p><Link className="text-button" to="/report">Report a problem instead</Link></main><ProductFooter /></div>
 }

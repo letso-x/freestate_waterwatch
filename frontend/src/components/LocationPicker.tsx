@@ -44,7 +44,7 @@ export default function LocationPicker({ value, onChange, readOnly = false }: Pr
 
   return <div className="location-picker">
     <div ref={container} className="location-map" role="region" aria-label="Incident location map" aria-describedby="map-help" />
-    {!readOnly && <div className="map-controls"><p id="map-help">Tap the map to place a pin. Keyboard: focus the map, pan with arrow keys, then select its centre.</p><button type="button" className="button button-secondary" onClick={useMapCentre}>Select map centre</button></div>}
-    {tileError && <p className="field-error" role="status">Map tiles could not load. You can still enter an address and coordinates, or use GPS.</p>}
+    {!readOnly && <div className="map-controls"><p id="map-help">Tap to place a pin, or move the map and select its centre. Use arrow keys to move the map with a keyboard.</p><button type="button" className="button button-secondary" onClick={useMapCentre}>Select map centre</button></div>}
+    {tileError && <p className="field-error" role="status">{readOnly ? 'The map couldn’t load. The recorded coordinates are shown above.' : 'The map couldn’t load. You can still enter the address or use your current location.'}</p>}
   </div>
 }

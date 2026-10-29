@@ -34,7 +34,7 @@ describe('API client', () => {
   it('provides useful network and database error messages', async () => {
     const fetch = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce(Response.json({}, { status: 503 }))
     vi.stubGlobal('fetch', fetch)
-    await expect(getIncidents()).rejects.toThrow('could not reach')
+    await expect(getIncidents()).rejects.toThrow('connect')
     await expect(getIncidents()).rejects.toThrow('temporarily unavailable')
   })
   it('rejects unexpected data rather than showing fake records', async () => {
@@ -54,7 +54,7 @@ it('uses the exact reference endpoint for lookup', async () => {
 it('does not call the API for an invalid reference', async () => {
   const fetch = vi.fn()
   vi.stubGlobal('fetch', fetch)
-  await expect(getIncident('short-reference')).rejects.toThrow('full report reference')
+  await expect(getIncident('short-reference')).rejects.toThrow('full reference number')
   expect(fetch).not.toHaveBeenCalled()
 })
 

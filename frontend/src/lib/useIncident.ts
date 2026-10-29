@@ -11,14 +11,14 @@ function useReference<T extends { id: string }>(reference: string | undefined, l
     setIncident(null)
     setError('')
     if (!reference) { setLoading(false); return }
-    if (!isIncidentReference(reference)) { setLoading(false); setError('Enter the full report reference shown on your confirmation.'); return }
+    if (!isIncidentReference(reference)) { setLoading(false); setError('Enter the full reference number from your confirmation.'); return }
     const controller = new AbortController()
     setLoading(true)
     void loader(reference, controller.signal).then(record => {
       if (!controller.signal.aborted) setIncident(record)
     }).catch(cause => {
       if (!controller.signal.aborted) setError(cause instanceof ApiError && cause.status === 404
-        ? 'No report was found for this reference. Check the full reference and try again.'
+        ? 'We couldn’t find that report. Please check your reference number and try again.'
         : cause instanceof Error ? cause.message : 'The report could not be loaded.')
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()

@@ -45,6 +45,6 @@ describe('interactive map adapter', () => {
     expect(mocks.circleMarker).toHaveBeenCalledWith([-29.12, 26.21], expect.any(Object))
     const tileError = mocks.tiles.on.mock.calls.find(call => call[0] === 'tileerror')![1]
     act(() => tileError())
-    expect(screen.getByRole('status')).toHaveTextContent('Map tiles could not load')
+    expect(screen.getByRole('status')).toHaveTextContent('The map couldn’t load')
   })
 })

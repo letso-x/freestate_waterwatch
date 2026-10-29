@@ -19,8 +19,8 @@ export class ApiError extends Error {
 }
 
 function endpoint(path: string): string {
-  if (!baseUrl) throw new ApiError('The incident API is not configured. Set VITE_API_BASE_URL and restart the dashboard.')
-  if (!/^https?:\/\//i.test(baseUrl)) throw new ApiError('VITE_API_BASE_URL must be an HTTP or HTTPS URL.')
+  if (!baseUrl) throw new ApiError('Reporting is unavailable. Please contact your service administrator.')
+  if (!/^https?:\/\//i.test(baseUrl)) throw new ApiError('The service address is not valid. Please contact your service administrator.')
   return `${baseUrl}${path}`
 }
 
@@ -33,7 +33,7 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
     response = await fetch(endpoint(path), { ...options, headers: Object.fromEntries(headers.entries()), signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) })
   } catch (error) {
     if (error instanceof ApiError || (error instanceof DOMException && error.name === 'AbortError')) throw error
-    throw new ApiError('We could not reach the incident API. Check your connection and that the API is running, then try again.')
+    throw new ApiError('We couldn’t connect. Check your connection and try again.')
   }
   if (!response.ok) {
     const problem = await response.json().catch(() => ({})) as {
@@ -44,9 +44,9 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
       const field = key.toLocaleLowerCase() as keyof CreateIncidentRequest
       if (['title', 'description', 'location', 'latitude', 'longitude'].includes(field)) fields[field] = messages.join(' ')
     }
-    throw new ApiError(response.status === 401 ? 'Operator access is required. Sign in with the demo operator token.' : response.status >= 500
-      ? 'The incident service is temporarily unavailable. Please try again shortly.'
-      : problem.detail ?? problem.title ?? `The request failed (${response.status}).`, fields, response.status)
+    throw new ApiError(response.status === 401 ? 'Please sign in to continue.' : response.status >= 500
+      ? 'Reporting is temporarily unavailable. Please try again shortly.'
+      : (problem.detail ?? problem.title ?? `The request failed (${response.status}).`).replaceAll('UnderReview', 'Under Review').replaceAll('InProgress', 'In Progress').replaceAll('operator', 'staff member').replaceAll('incident lifecycle', 'report progress sequence'), fields, response.status)
   }
   return response.json() as Promise<T>
 }
@@ -57,7 +57,7 @@ export async function getIncidents(signal?: AbortSignal): Promise<Incident[]> {
   const pageSize = 100
   for (let page = 1; ; page++) {
     const batch = await request<Incident[]>(`/api/incidents?page=${page}&pageSize=${pageSize}`, { signal })
-    if (!Array.isArray(batch)) throw new ApiError('The incident API returned an unexpected response.')
+    if (!Array.isArray(batch)) throw new ApiError('We couldn’t load the reports. Please try again.')
     for (const incident of batch) all.set(incident.id, incident)
     if (batch.length < pageSize) break
   }
@@ -71,7 +71,7 @@ export function createIncident(input: CreateIncidentRequest): Promise<Incident> 
 }
 
 export function getIncident(id: string, signal?: AbortSignal): Promise<Incident> {
-  if (!isIncidentReference(id)) return Promise.reject(new ApiError('Enter the full report reference shown on your confirmation.', {}, 400))
+  if (!isIncidentReference(id)) return Promise.reject(new ApiError('Enter the full reference number from your confirmation.', {}, 400))
   return request<Incident>(`/api/incidents/${encodeURIComponent(id.trim())}`, { signal })
 }
 
