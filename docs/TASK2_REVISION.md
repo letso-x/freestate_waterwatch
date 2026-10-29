@@ -1,5 +1,7 @@
 # Task 2 revision: separate reporting and operations
 
+Historical Task 2 snapshot at commit 42102ce. [Task 3](TASK3_WORKFLOW.md) adds operator authorization, lifecycle management and public-safe tracking; its security and API contracts supersede the access limitations described below.
+
 ## Preserved implementation
 
 The existing React dashboard, incident summaries, search/status filtering, timestamps, validation rules, paginated API client, error handling, explicit CORS allowlist, ASP.NET Controller → Service → DbContext architecture, PostgreSQL provider and migrations were retained. The original dashboard was moved to `frontend/src/pages/OperationsDashboard.tsx`; its reporting component was reused as a page form rather than discarded.

@@ -1,6 +1,7 @@
 namespace WaterWatch.Api.Models;
 
-public enum IncidentStatus { Reported }
+public enum IncidentStatus { Reported, UnderReview, InProgress, Resolved }
+public enum IncidentPriority { Low, Medium, High, Critical }
 
 public sealed class Incident
 {
@@ -12,4 +13,8 @@ public sealed class Incident
     public double? Longitude { get; set; }
     public IncidentStatus Status { get; set; } = IncidentStatus.Reported;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? ResolvedAtUtc { get; set; }
+    public IncidentPriority Priority { get; set; } = IncidentPriority.Medium;
+    public string? AssignedTo { get; set; }
 }

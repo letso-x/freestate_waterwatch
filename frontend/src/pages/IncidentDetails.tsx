@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, Droplets } from 'lucide-react'
 import { PrototypeNotice } from '../components/PublicLayout'
-import IncidentRecord from '../components/IncidentRecord'
+import IncidentManagement from '../components/IncidentManagement'
 import { useIncident } from '../lib/useIncident'
 
 export default function IncidentDetails() {
@@ -14,8 +14,7 @@ export default function IncidentDetails() {
       <p className="intro-copy">Review the resident’s report and recorded location.</p>
       {loading && <p role="status">Loading incident details…</p>}
       {error && <div className="error-banner" role="alert"><AlertCircle size={19} /><span>{error}</span><button onClick={retry} className="button button-secondary">Try again</button></div>}
-      {incident && <IncidentRecord incident={incident} />}
-      <div className="scope-note"><h2>Review workspace</h2><p>Assignment, status changes and internal review notes are not implemented in this sprint. Reports are available for monitoring and read-only review.</p></div>
+      {incident && <IncidentManagement key={incident.id} initialIncident={incident} />}
     </main>
   </div>
 }

@@ -1,11 +1,17 @@
 # WaterWatch Free State
 
-A municipal incident dashboard built with React, Vite, TypeScript and Tailwind CSS, backed by the existing ASP.NET Core (.NET 10), EF Core and PostgreSQL API. The API request path remains Controller → IncidentService → WaterWatchDbContext. Authentication, WhatsApp, IoT, media uploads, incident assignment and status updates are outside the current scope. Resident reporting now includes map/GPS coordinate selection.
+A municipal incident dashboard built with React, Vite, TypeScript and Tailwind CSS, backed by the existing ASP.NET Core (.NET 10), EF Core and PostgreSQL API. The API request path remains Controller → IncidentService → WaterWatchDbContext. Resident reporting includes map/GPS coordinate selection. Task 3 adds protected operator access, lifecycle management, priority, assignment and append-only history. WhatsApp, IoT, AI, media uploads and full user management remain outside scope.
 
 
-## Start both applications (Task 2)
+## Current Task 3 workflow
 
-The existing database migration is unchanged. Do not recreate the database or add another migration for the dashboard.
+See [Task 3 setup, API contracts, security and demonstration](docs/TASK3_WORKFLOW.md). The incremental lifecycle/history migration has been applied to Supabase; the original migration remains intact. Operations list/details/history now require an operator token. Public confirmation/tracking use the public-safe tracking endpoint, not the operational GET contract.
+
+Create the local operator credential with `./scripts/Initialize-DemoOperator.ps1` and start the API with `./scripts/Start-Api.ps1`. Run `./scripts/Initialize-DemoOperator.ps1 -RevealToken` locally to copy the token into the operations sign-in form. Never put it in frontend configuration. Open `/report` or `/track` without operator credentials. Run `./scripts/Verify-Workflow.ps1` for the real HTTP/Supabase workflow and, after restarting both apps, `./scripts/Verify-Workflow.ps1 -VerifyOnly` to verify persistence.
+
+## Start both applications
+
+The original database migration is unchanged. Task 3 adds an incremental lifecycle/history migration; apply it with EF database update on a new environment. Do not recreate the database.
 
 **Terminal 1 — API**, from the repository root:
 
@@ -14,7 +20,7 @@ The existing database migration is unchanged. Do not recreate the database or ad
 if (-not $env:ConnectionStrings__WaterWatch) {
     $env:ConnectionStrings__WaterWatch = [Environment]::GetEnvironmentVariable('ConnectionStrings__WaterWatch', 'User')
 }
-dotnet run --project src/WaterWatch.Api --launch-profile http
+./scripts/Start-Api.ps1
 ```
 
 API: http://localhost:5100 · Swagger: http://localhost:5100/swagger/index.html
@@ -32,9 +38,9 @@ Dashboard: http://localhost:5173
 
 `frontend/.env.local` contains `VITE_API_BASE_URL=http://localhost:5100`. Change it to the API origin when needed, then restart Vite. All `VITE_` variables are public browser configuration: never put passwords, Supabase secrets or database connection strings in them. The browser talks only to the API; only the API talks to PostgreSQL. `.env.local`, dependencies and build output are ignored by Git.
 
-Vite uses port 5173 with `strictPort` enabled: it fails clearly if that port is occupied instead of silently selecting a port rejected by CORS. In Development, the API explicitly allows `http://localhost:5173` and `http://127.0.0.1:5173`; it permits GET/POST and required request headers without credentialed CORS or wildcard origins. Other environments have no allowed origins unless configured via `Cors:AllowedOrigins` (for example `Cors__AllowedOrigins__0=https://your-dashboard.example`). CORS is not authentication. Keep this unauthenticated MVP in the intended development/demo environment.
+Vite uses port 5173 with `strictPort` enabled: it fails clearly if that port is occupied instead of silently selecting a port rejected by CORS. In Development, the API explicitly allows `http://localhost:5173` and `http://127.0.0.1:5173`; it permits GET/POST/PATCH and required request headers without credentialed CORS or wildcard origins. Other environments have no allowed origins unless configured via `Cors:AllowedOrigins` (for example `Cors__AllowedOrigins__0=https://your-dashboard.example`). CORS is not authentication. Keep this shared-operator-token demonstration local. Public reporting/tracking remain open; privileged reads and writes require backend authorization.
 
-## Current public and municipal experiences
+## Public and municipal experiences
 
 The existing dashboard and API were extended, not restarted. See [Task 2 revision details](docs/TASK2_REVISION.md) for scope, branding references, location behavior and remaining backend requirements.
 
@@ -42,8 +48,8 @@ The existing dashboard and API were extended, not restarted. See [Task 2 revisio
 - Municipal personnel: `/operations` and `/operations/incidents/:id`. Monitor, search, filter and review real reports. Public submission was moved out of this workspace.
 - Shared prototype design tokens use Mangaung-inspired green/orange/charcoal. Their HEX values are prototype choices, not verified official values. Both workspaces display Hackathon Prototype and no-endorsement notices.
 - Map pins, keyboard map-centre selection, manual coordinates and permission-based GPS use the existing coordinate fields. Photos are explicitly unavailable pending attachment endpoints, object storage and a future attachment migration.
-- A minimal read-only GET `/api/incidents/{id}` supports tracking and details without downloading the incident list. Existing list/POST contracts and migrations remain unchanged.
-- Routes separate the user experiences, not access permissions. The prototype has no authentication. Static hosting needs SPA fallback to `/index.html` for direct route loads.
+- Operational GET `/api/incidents/{id}` requires operator authorization. Residents use GET `/api/public/incidents/{id}/tracking`. Task 3 adds audited status, priority, assignment and internal-note management without changing the public reporting payload.
+- Task 3 adds backend operator authorization for operational reads and writes, with a separate public-safe tracking contract. Static hosting needs SPA fallback to `/index.html` for direct route loads.
 
 ## Task 2 build and test commands
 
@@ -102,7 +108,7 @@ Open http://localhost:5100/swagger in Development. Expand **POST /api/incidents*
 }
 ```
 
-A successful POST returns **201** and the saved incident, including its UUID, `Reported` status and UTC creation timestamp. Confirm the row in Supabase's Table Editor (`public.Incidents`), then call **GET /api/incidents** to retrieve it. Swagger is enabled only in Development; this MVP has no authentication and should be run locally for the demo.
+A successful POST returns **201** and the saved incident, including its UUID, `Reported` status and UTC creation timestamp. Confirm the row in Supabase's Table Editor (`public.Incidents`), then call **GET /api/incidents** to retrieve it. Swagger is enabled only in Development; operational reads and writes require the demo operator token, while public tracking uses its dedicated safe endpoint. Keep the demo local.
 
 ## Contract and errors
 
@@ -153,8 +159,12 @@ The live test inserts one temporary incident, verifies its committed row and API
 - No PostgreSQL migration, model, controller contract or database provider changes were made.
 - **Browser QA limitation:** the in-app browser bridge timed out. Windows Computer Use then stopped because it could not determine Chrome's current URL reliably enough to enforce its browser policy. Actual browser form submission, visual/mobile inspection and browser-console CORS checks remain unverified. Passing HTTP CORS checks and jsdom interaction tests do not substitute for those browser checks. To complete manual QA, open http://localhost:5173, submit a report, confirm it appears, test search/status filtering, resize to a mobile width, and inspect DevTools Console for CORS errors.
 
-## Current Task 2 revision verification — 29 October 2026
+## Previous Task 2 revision verification — 29 October 2026
 
 The split resident/operations implementation builds successfully. Backend: 21 passed, 0 failed, 0 skipped (including existing Supabase tests); frontend: 32 passed, 0 failed. Backend build: 0 warnings, 0 errors. Frontend TypeScript/Vite build: passed. Direct loading of all five React routes returned 200 SPA documents; live lookup/preflight CORS checks passed. Database model and migrations are unchanged.
 
 See [revision scope and verification](docs/TASK2_REVISION.md) for the remaining photo backend requirements, unsupported management features and browser/device QA limits. The browser webview failed to attach, so physical GPS, visual/mobile rendering and browser-console checks remain unverified.
+
+## Task 3 verification — 30 October 2026
+
+Backend: 48 tests passed (0 failed/skipped), build 0 warnings/errors. Frontend: 43 tests passed, production build passed. Incremental lifecycle/history migration applied to Supabase. A real persisted HTTP workflow and full API/frontend process restart verification both passed, including public/private timeline separation and unauthorized access checks. Browser-use webview attachment failed, so browser/device QA remains unverified. See [Task 3 workflow, commands and limitations](docs/TASK3_WORKFLOW.md).

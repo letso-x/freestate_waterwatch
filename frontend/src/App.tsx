@@ -4,6 +4,7 @@ import OperationsDashboard from './pages/OperationsDashboard'
 import { PublicReport, ReportSuccess, TrackReport } from './pages/PublicPortal'
 import IncidentDetails from './pages/IncidentDetails'
 import PublicLayout from './components/PublicLayout'
+import { OperatorProvider, OperatorGate } from './components/OperatorAccess'
 
 function RouteFocus() {
   const { pathname } = useLocation()
@@ -17,10 +18,10 @@ export function AppRoutes() {
     <Route path="/report" element={<PublicReport />} />
     <Route path="/report/success" element={<ReportSuccess />} />
     <Route path="/track" element={<TrackReport />} />
-    <Route path="/operations" element={<OperationsDashboard />} />
-    <Route path="/operations/incidents/:id" element={<IncidentDetails />} />
+    <Route path="/operations" element={<OperatorGate><OperationsDashboard /></OperatorGate>} />
+    <Route path="/operations/incidents/:id" element={<OperatorGate><IncidentDetails /></OperatorGate>} />
     <Route path="*" element={<PublicLayout><h1>Page not found</h1><p>Choose a WaterWatch workspace to continue.</p><Link to="/report" className="button button-primary">Resident reporting</Link> <Link to="/operations" className="button button-secondary">Municipal operations</Link></PublicLayout>} />
   </Routes></>
 }
 
-export default function App() { return <BrowserRouter><AppRoutes /></BrowserRouter> }
+export default function App() { return <BrowserRouter><OperatorProvider><AppRoutes /></OperatorProvider></BrowserRouter> }

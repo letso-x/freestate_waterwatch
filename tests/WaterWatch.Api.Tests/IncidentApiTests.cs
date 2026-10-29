@@ -116,13 +116,34 @@ public sealed class IncidentApiTests
     }
 }
 
-internal sealed class ApiFactory(bool usePostgres = false, string? postgresConnection = null) : WebApplicationFactory<Program>
+internal sealed class ApiFactory(bool usePostgres = false, string? postgresConnection = null, System.Data.Common.DbConnection? sharedConnection = null, System.Data.Common.DbTransaction? sharedTransaction = null) : WebApplicationFactory<Program>
 {
+    public static readonly string OperatorKey = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", OperatorKey);
+    }
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.UseSetting("Operator:ApiKey", OperatorKey);
+        builder.UseSetting("Operator:Identifier", "test-operator");
         builder.UseSetting("ConnectionStrings:WaterWatch", postgresConnection ?? "Host=127.0.0.1;Port=1;Database=unreachable;Username=test;Timeout=1;Pooling=false");
+        if (sharedConnection is not null)
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<WaterWatchDbContext>();
+                services.AddScoped(_ => {
+                    var db = new WaterWatchDbContext(new DbContextOptionsBuilder<WaterWatchDbContext>().UseNpgsql(sharedConnection).Options);
+                    db.Database.UseTransaction(sharedTransaction);
+                    return db;
+                });
+            });
+            return;
+        }
         if (usePostgres) return;
         connection.Open();
         builder.ConfigureServices(services =>

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using WaterWatch.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using WaterWatch.Api.Data;
 using WaterWatch.Api.Errors;
@@ -11,20 +13,26 @@ var connectionString = builder.Configuration.GetConnectionString("WaterWatch");
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Set ConnectionStrings__WaterWatch to a PostgreSQL connection string.");
 builder.Services.AddControllers().AddJsonOptions(options =>
-    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddDbContext<WaterWatchDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IncidentService>();
+builder.Services.AddAuthentication(OperatorAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, OperatorAuthenticationHandler>(OperatorAuthenticationHandler.SchemeName, _ => { });
+builder.Services.AddAuthorization(options => options.AddPolicy("Operator", policy => policy.RequireAuthenticatedUser().RequireRole("Operator")));
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddPolicy("MunicipalDashboard", policy =>
-    policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST").AllowAnyHeader()));
+    policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST", "PATCH").AllowAnyHeader()));
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.Use(async (context, next) => { if (context.Request.Path.StartsWithSegments("/api")) context.Response.Headers.CacheControl = "no-store"; await next(); });
 app.UseCors("MunicipalDashboard");
+app.UseAuthentication();
+app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

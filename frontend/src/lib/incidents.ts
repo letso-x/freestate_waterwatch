@@ -7,6 +7,10 @@ export interface Incident {
   longitude: number | null
   status: string
   createdAtUtc: string
+  updatedAtUtc?: string
+  resolvedAtUtc?: string | null
+  priority?: string
+  assignedTo?: string | null
 }
 
 export interface CreateIncidentRequest {
@@ -66,3 +70,14 @@ export function formatTimestamp(value: string): string {
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(value))
 }
+
+export interface IncidentEvent {
+  id: string; incidentId: string; eventType: string; oldStatus: string | null; newStatus: string | null
+  note: string | null; actorIdentifier: string; isPublic: boolean; createdAtUtc: string
+}
+export interface PublicProgressEvent { eventType: string; oldStatus: string | null; newStatus: string | null; summary: string; createdAtUtc: string }
+export interface PublicTracking { id: string; title: string; locationDescription: string; status: string; createdAtUtc: string; updatedAtUtc: string; events: PublicProgressEvent[] }
+export const lifecycleStatuses = ['Reported', 'UnderReview', 'InProgress', 'Resolved'] as const
+export const priorities = ['Low', 'Medium', 'High', 'Critical'] as const
+export function statusLabel(status: string) { return ({ UnderReview: 'Under Review', InProgress: 'In Progress' } as Record<string,string>)[status] ?? status }
+export function nextStatus(status: string): string | undefined { return ({ Reported: 'UnderReview', UnderReview: 'InProgress', InProgress: 'Resolved', Resolved: 'UnderReview' } as Record<string,string>)[status] }

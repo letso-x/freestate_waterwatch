@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PrototypeNotice } from '../components/PublicLayout'
 import { getIncidents } from '../lib/api'
-import { filterIncidents, formatTimestamp, summarize } from '../lib/incidents'
+import { filterIncidents, formatTimestamp, summarize, lifecycleStatuses, priorities, statusLabel } from '../lib/incidents'
 import type { Incident } from '../lib/incidents'
 
 function Metric({ label, value, description, icon: Icon, accent }: { label: string; value: number | null; description: string; icon: LucideIcon; accent: string }) {
@@ -28,9 +28,9 @@ function IncidentRow({ incident }: { incident: Incident }) {
         <span className="incident-reference">WW · {incident.id} <span>Citizen report</span></span>
       </div>
     </div>
-    <div className="incident-location"><MapPin size={15} /><span>{incident.location}</span></div>
-    <div className="incident-status"><span className="status-badge"><span />{incident.status}</span></div>
-    <div className="incident-time"><time dateTime={incident.createdAtUtc}>{formatTimestamp(incident.createdAtUtc)}</time><span>SAST · UTC+2</span></div>
+    <div className="incident-location"><MapPin size={15} /><span>{incident.location}<small className="assignment-label">{incident.assignedTo ?? "Unassigned"}</small></span></div>
+    <div className="incident-status"><span className={`status-badge status-${incident.status}`}><span />{statusLabel(incident.status)}</span><span className={`priority-badge priority-${incident.priority ?? "Medium"}`}>{incident.priority ?? "Medium"}</span></div>
+    <div className="incident-time"><time dateTime={incident.updatedAtUtc ?? incident.createdAtUtc}>{formatTimestamp(incident.updatedAtUtc ?? incident.createdAtUtc)}</time><span>Last updated · SAST</span></div>
   </article>
 }
 
@@ -42,6 +42,7 @@ export default function OperationsDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
   const activeRequest = useRef<AbortController | null>(null)
 
   const refresh = useCallback(async () => {
@@ -66,9 +67,9 @@ export default function OperationsDashboard() {
 
   useEffect(() => { void refresh(); return () => activeRequest.current?.abort() }, [refresh])
   const summary = useMemo(() => summarize(incidents), [incidents])
-  const visible = useMemo(() => filterIncidents(incidents, search, status), [incidents, search, status])
-  const statuses = [...new Set(['Reported', ...incidents.map(incident => incident.status)])]
-  const hasFilters = search.trim() !== '' || status !== 'all'
+  const visible = useMemo(() => filterIncidents(incidents, search, status).filter(record => priorityFilter === 'all' || (record.priority ?? 'Medium') === priorityFilter), [incidents, search, status, priorityFilter])
+  const statuses = lifecycleStatuses
+  const hasFilters = search.trim() !== '' || status !== 'all' || priorityFilter !== 'all'
 
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to incident overview</a>
@@ -109,13 +110,14 @@ export default function OperationsDashboard() {
           <div className="panel-heading"><div className="panel-title"><h2 id="incidents-heading">Incident overview</h2><span className="count-badge">{loaded ? summary.total : '—'}</span></div><button className="refresh-button" onClick={() => void refresh()} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /><span>{loading ? 'Refreshing' : 'Refresh'}</span></button></div>
           <div className="filter-bar">
             <div className="search-field"><Search size={18} /><input aria-label="Search incidents" placeholder="Search incidents, locations or descriptions…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button className="icon-button" aria-label="Clear search" onClick={() => setSearch('')}><X size={16} /></button>}</div>
-            <div className="status-filter"><label htmlFor="status-filter">Status</label><select id="status-filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option>{statuses.map(value => <option key={value} value={value}>{value}</option>)}</select></div>
+            <div className="status-filter"><label htmlFor="status-filter">Status</label><select id="status-filter" value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option>{statuses.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}</select></div>
+            <div className="status-filter"><label htmlFor="priority-filter">Priority</label><select id="priority-filter" value={priorityFilter} onChange={event => setPriorityFilter(event.target.value)}><option value="all">All priorities</option>{priorities.map(item => <option key={item}>{item}</option>)}</select></div>
           </div>
-          <div className="list-head" aria-hidden="true"><span>INCIDENT DETAILS</span><span>LOCATION</span><span>STATUS</span><span>REPORTED <ArrowDown size={12} /></span></div>
+          <div className="list-head" aria-hidden="true"><span>INCIDENT DETAILS</span><span>LOCATION</span><span>STATUS</span><span>UPDATED <ArrowDown size={12} /></span></div>
           {loading && !loaded ? <div className="loading-state" role="status"><RefreshCw size={26} className="animate-spin" /><h3>Loading incident reports</h3><p>Bringing your municipal overview up to date.</p></div>
             : !loaded && error ? <div className="empty-state"><span className="empty-symbol"><AlertCircle size={30} /></span><h3>Incident records are unavailable</h3><p>Restore the API connection and try again to view your reports.</p></div>
               : visible.length > 0 ? <div className="incident-list">{visible.map(incident => <IncidentRow key={incident.id} incident={incident} />)}</div>
-                : <div className="empty-state"><span className="empty-symbol">{hasFilters ? <Search size={30} /> : <Droplets size={33} />}</span><h3>{hasFilters ? 'No reports match your filters' : 'No incidents reported yet'}</h3><p>{hasFilters ? 'Try a different search or clear your filters to see all reports.' : 'Resident reports will appear here after submission through the public portal.'}</p>{hasFilters ? <button className="button button-secondary" onClick={() => { setSearch(''); setStatus('all') }}>Clear filters</button> : null}</div>}
+                : <div className="empty-state"><span className="empty-symbol">{hasFilters ? <Search size={30} /> : <Droplets size={33} />}</span><h3>{hasFilters ? 'No reports match your filters' : 'No incidents reported yet'}</h3><p>{hasFilters ? 'Try a different search or clear your filters to see all reports.' : 'Resident reports will appear here after submission through the public portal.'}</p>{hasFilters ? <button className="button button-secondary" onClick={() => { setSearch(''); setStatus('all'); setPriorityFilter('all') }}>Clear filters</button> : null}</div>}
           <div className="list-footer"><span>{loaded ? `Showing ${visible.length} of ${incidents.length} incident${incidents.length === 1 ? '' : 's'}` : 'Waiting for incident records'}<span className="footer-dot">·</span>Newest first</span><span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString('en-ZA', { timeZone: 'Africa/Johannesburg', hour: '2-digit', minute: '2-digit', hour12: false })} SAST` : 'All times in South Africa'}</span></div>
         </section>
 

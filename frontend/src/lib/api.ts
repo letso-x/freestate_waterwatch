@@ -1,7 +1,11 @@
-import type { CreateIncidentRequest, FormErrors, Incident } from './incidents'
+import type { CreateIncidentRequest, FormErrors, Incident, IncidentEvent, PublicTracking } from './incidents'
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 const baseUrl = configuredBaseUrl?.replace(/\/+$/, '')
+
+let operatorToken = ''
+export function setOperatorToken(token: string) { operatorToken = token.trim() }
+export function clearOperatorToken() { operatorToken = '' }
 
 export class ApiError extends Error {
   public readonly fieldErrors: FormErrors
@@ -21,9 +25,12 @@ function endpoint(path: string): string {
 }
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
+  const privileged = path.startsWith('/api/incidents') && (options.method ?? 'GET') !== 'POST' || /\/api\/incidents\/[^/]+\/notes/.test(path)
+  const headers = new Headers(options.headers)
+  if (privileged && operatorToken) headers.set('Authorization', 'Bearer ' + operatorToken)
   let response: Response
   try {
-    response = await fetch(endpoint(path), { ...options, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) })
+    response = await fetch(endpoint(path), { ...options, headers: Object.fromEntries(headers.entries()), signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) })
   } catch (error) {
     if (error instanceof ApiError || (error instanceof DOMException && error.name === 'AbortError')) throw error
     throw new ApiError('We could not reach the incident API. Check your connection and that the API is running, then try again.')
@@ -37,7 +44,7 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
       const field = key.toLocaleLowerCase() as keyof CreateIncidentRequest
       if (['title', 'description', 'location', 'latitude', 'longitude'].includes(field)) fields[field] = messages.join(' ')
     }
-    throw new ApiError(response.status >= 500
+    throw new ApiError(response.status === 401 ? 'Operator access is required. Sign in with the demo operator token.' : response.status >= 500
       ? 'The incident service is temporarily unavailable. Please try again shortly.'
       : problem.detail ?? problem.title ?? `The request failed (${response.status}).`, fields, response.status)
   }
@@ -71,3 +78,13 @@ export function getIncident(id: string, signal?: AbortSignal): Promise<Incident>
 export function isIncidentReference(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim())
 }
+
+export function getPublicTracking(id: string, signal?: AbortSignal): Promise<PublicTracking> {
+  if (!isIncidentReference(id)) return Promise.reject(new ApiError('Enter the full report reference shown on your confirmation.', {}, 400))
+  return request<PublicTracking>('/api/public/incidents/' + encodeURIComponent(id.trim()) + '/tracking', { signal })
+}
+export function getEvents(id: string): Promise<IncidentEvent[]> { return request('/api/incidents/' + encodeURIComponent(id) + '/events', {}) }
+export function updateStatus(id: string, status: string, note: string): Promise<Incident> { return request('/api/incidents/' + encodeURIComponent(id) + '/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, note }) }) }
+export function updatePriority(id: string, priority: string, note: string): Promise<Incident> { return request('/api/incidents/' + encodeURIComponent(id) + '/priority', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority, note }) }) }
+export function updateAssignment(id: string, assignedTo: string, note: string): Promise<Incident> { return request('/api/incidents/' + encodeURIComponent(id) + '/assignment', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo: assignedTo.trim() || null, note }) }) }
+export function addInternalNote(id: string, note: string): Promise<IncidentEvent> { return request('/api/incidents/' + encodeURIComponent(id) + '/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }) }) }

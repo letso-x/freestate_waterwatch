@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, createIncident, getIncident, getIncidents } from './api'
+import { ApiError, createIncident, getIncident, getIncidents, getEvents, getPublicTracking, setOperatorToken, clearOperatorToken } from './api'
 import type { Incident } from './incidents'
 
 const row = (id: number): Incident => ({
   id: String(id), title: `Leak ${id}`, description: 'Water flowing from a damaged pipe.', location: 'Welkom',
   latitude: null, longitude: null, status: 'Reported', createdAtUtc: '2026-10-29T10:00:00Z',
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); clearOperatorToken() })
 
 describe('API client', () => {
   it('fetches every page and deduplicates records', async () => {
@@ -24,7 +24,7 @@ describe('API client', () => {
     const input = { title: 'Burst pipe', description: 'Water flowing outside.', location: 'Welkom' }
     await expect(createIncident(input)).resolves.toEqual(row(1))
     expect(fetch).toHaveBeenCalledWith('http://localhost:5100/api/incidents', expect.objectContaining({
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input),
     }))
   })
   it('surfaces server validation fields', async () => {
@@ -56,4 +56,22 @@ it('does not call the API for an invalid reference', async () => {
   vi.stubGlobal('fetch', fetch)
   await expect(getIncident('short-reference')).rejects.toThrow('full report reference')
   expect(fetch).not.toHaveBeenCalled()
+})
+
+it('sends an operator credential only to privileged API routes', async () => {
+  const fetch = vi.fn().mockImplementation(() => Promise.resolve(Response.json([])))
+  vi.stubGlobal('fetch', fetch)
+  const token = crypto.randomUUID() + crypto.randomUUID()
+  setOperatorToken(token)
+  await getEvents('40ac8cb2-20d8-4bfa-8f4d-74f466767236')
+  expect(fetch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ headers: { authorization: 'Bearer ' + token } }))
+  await getPublicTracking('40ac8cb2-20d8-4bfa-8f4d-74f466767236')
+  expect(fetch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ headers: {} }))
+})
+it('clears the in-memory credential on sign out', async () => {
+  const fetch = vi.fn().mockImplementation(() => Promise.resolve(Response.json([])))
+  vi.stubGlobal('fetch', fetch)
+  setOperatorToken(crypto.randomUUID() + crypto.randomUUID()); clearOperatorToken()
+  await getEvents('40ac8cb2-20d8-4bfa-8f4d-74f466767236')
+  expect(fetch).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ headers: {} }))
 })

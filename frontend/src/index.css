@@ -263,3 +263,26 @@ h1 > span { color: var(--text-muted); }
   .public-header nav { flex-wrap: wrap; }
   .public-header .operations-link { display: inline-flex; }
 }
+
+.operator-session { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 18px; background: var(--surface-green); color: var(--brand-green); padding: 9px 24px; font-size: 11px; }
+.management-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.management-form { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.management-form h2, .record-card > h2, .record-card > h3 { font-size: 19px; font-weight: 650; }
+.management-form label { font-size: 13px; font-weight: 600; }
+.management-form input, .management-form textarea, .management-form select, #operator-token { border: 1px solid var(--border); border-radius: 6px; padding: 11px; background: var(--page); color: var(--text); width: 100%; font-size: 14px; }
+.management-form textarea { resize: vertical; }
+.management-form .field-hint { font-size: 11px; line-height: 1.8; color: var(--text-muted); }
+.management-form .button { align-self: start; margin-top: auto; }
+#operator-token { margin: 0 0 16px; }
+.activity-timeline { padding: 8px 0 0 20px; border-left: 2px solid var(--border); margin: 20px 0 10px 8px; }
+.activity-timeline li { padding: 0 0 24px 9px; position: relative; font-size: 13px; line-height: 1.8; }
+.activity-timeline li::before { content: ''; position: absolute; left: -26px; top: 7px; width: 10px; height: 10px; background: var(--brand-green); border-radius: 50%; }
+.activity-timeline li p { color: var(--text-muted); overflow-wrap: anywhere; }
+.activity-timeline time, .event-visibility { display: block; color: var(--text-muted); font-size: 11px; }
+.event-visibility { color: var(--brand-orange-ink); margin: 4px 0; }
+.status-UnderReview { background: var(--surface-orange); color: var(--brand-orange-ink); }
+.status-InProgress, .status-Resolved { background: var(--surface-green); color: var(--brand-green); }
+.priority-badge { font-size: 9px; display: block; margin-top: 7px; color: var(--text-muted); }
+.priority-High, .priority-Critical { font-weight: 700; color: var(--brand-orange-ink); }
+.assignment-label { display: block; color: var(--text-muted); font-size: 10px; margin-top: 5px; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .management-grid { grid-template-columns: 1fr; } .operator-session { justify-content: start; } }

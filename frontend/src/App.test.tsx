@@ -3,12 +3,13 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AppRoutes } from './App'
-import { ApiError, createIncident, getIncident, getIncidents } from './lib/api'
+import { ApiError, createIncident, getIncident, getIncidents, getPublicTracking, getEvents } from './lib/api'
 import type { Incident } from './lib/incidents'
 
 vi.mock('./lib/api', async importOriginal => ({
-  ...await importOriginal<typeof import('./lib/api')>(), getIncidents: vi.fn(), getIncident: vi.fn(), createIncident: vi.fn(),
+  ...await importOriginal<typeof import('./lib/api')>(), getIncidents: vi.fn(), getIncident: vi.fn(), getPublicTracking: vi.fn(), getEvents: vi.fn(), createIncident: vi.fn(),
 }))
+vi.mock('./components/OperatorAccess', () => ({ OperatorGate: ({ children }: { children: import('react').ReactNode }) => children, OperatorProvider: ({ children }: { children: import('react').ReactNode }) => children }))
 // The map adapter is tested separately; these route tests exercise the real form.
 vi.mock('./components/LocationPicker', () => ({ default: ({ onChange }: { onChange: (value: { latitude: number; longitude: number }) => void }) => <button type="button" onClick={() => onChange({ latitude: -29.12, longitude: 26.21 })}>Select test map point</button> }))
 const report: Incident = {
@@ -20,15 +21,17 @@ const report: Incident = {
 beforeEach(() => {
   vi.mocked(getIncidents).mockReset().mockResolvedValue([])
   vi.mocked(getIncident).mockReset().mockResolvedValue(report)
+  vi.mocked(getPublicTracking).mockReset().mockResolvedValue({ id: report.id, title: report.title, locationDescription: 'Location recorded', status: report.status, createdAtUtc: report.createdAtUtc, updatedAtUtc: report.createdAtUtc, events: [] })
+  vi.mocked(getEvents).mockReset().mockResolvedValue([])
   vi.mocked(createIncident).mockReset()
   Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined })
 })
 function open(path = '/operations') { return render(<MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter>) }
 async function fill() {
   const user = userEvent.setup({ delay: null })
-  await user.type(screen.getByLabelText(/Incident title/), report.title)
-  await user.type(screen.getByLabelText(/^Location/), report.location)
-  await user.type(screen.getByLabelText(/What did you notice/), report.description)
+  await user.click(screen.getByLabelText(/Incident title/)); await user.paste(report.title)
+  await user.click(screen.getByLabelText(/^Location/)); await user.paste(report.location)
+  await user.click(screen.getByLabelText(/What did you notice/)); await user.paste(report.description)
   return user
 }
 
@@ -112,7 +115,7 @@ describe('independent resident portal', () => {
   })
   it('does not offer resubmission if the confirmation lookup fails after saving', async () => {
     vi.mocked(createIncident).mockResolvedValue(report)
-    vi.mocked(getIncident).mockRejectedValue(new Error('Lookup unavailable.'))
+    vi.mocked(getPublicTracking).mockRejectedValue(new Error('Lookup unavailable.'))
     open('/report')
     const user = await fill()
     await user.click(screen.getByRole('button', { name: 'Submit report' }))
@@ -186,7 +189,7 @@ describe('resident tracking', () => {
     expect(getIncidents).not.toHaveBeenCalled()
   })
   it('shows not-found feedback for an unknown reference', async () => {
-    vi.mocked(getIncident).mockRejectedValue(new ApiError('Not found', {}, 404))
+    vi.mocked(getPublicTracking).mockRejectedValue(new ApiError('Not found', {}, 404))
     open(`/track?reference=${report.id}`)
     expect(await screen.findByRole('alert')).toHaveTextContent('No report was found')
   })
