@@ -1,20 +1,21 @@
 import type { TelemetryReading } from '../lib/sensors'
-import { formatTimestamp } from '../lib/incidents'
+import { readingTime, clockTime } from '../lib/display'
 
 export default function ReadingsChart({ readings }: { readings: TelemetryReading[] }) {
-  const values = [...readings].reverse()
-  if (values.length === 0) return <p className="sensor-empty">No measurements have been recorded yet.</p>
-  if (values.length === 1) return <p className="sensor-empty">One measurement recorded. The chart will appear after the next reading.</p>
-  const low = Math.min(...values.map(x => x.value)); const high = Math.max(...values.map(x => x.value))
-  const span = high - low || 1
+  const values = [...readings].sort((a, b) => a.measuredAtUtc.localeCompare(b.measuredAtUtc))
+  if (!values.length) return <p className="workspace-state">No measurements have been recorded yet.</p>
+  if (values.length === 1) return <p className="workspace-state">One measurement recorded. The chart will appear after the next reading.</p>
+  const low = Math.min(...values.map(item => item.value)); const high = Math.max(...values.map(item => item.value))
+  const padding = Math.max((high - low) * .15, 1); const min = low - padding; const max = high + padding
   const first = Date.parse(values[0].measuredAtUtc); const last = Date.parse(values.at(-1)!.measuredAtUtc)
-  const points = values.map(x => `${48 + (Date.parse(x.measuredAtUtc) - first) / (last - first || 1) * 640},${176 - (x.value - low) / span * 136}`).join(' ')
-  return <figure className="readings-chart"><svg viewBox="0 0 720 220" role="img" aria-label={`Recent measurements in ${values[0].unit}`}>
-    <title>Recent {values.length} measurements, from {low} to {high} {values[0].unit}</title>
-    <line x1="48" x2="688" y1="40" y2="40" className="chart-grid" /><line x1="48" x2="688" y1="176" y2="176" className="chart-grid" />
-    <text x="4" y="43">{high.toLocaleString('en-ZA')}</text><text x="4" y="179">{low.toLocaleString('en-ZA')}</text>
-    <polyline points={points} fill="none" stroke="var(--brand-green)" strokeWidth="3" vectorEffect="non-scaling-stroke" />
-    <text x="48" y="210">{new Date(first).toLocaleTimeString('en-ZA', { timeZone: 'Africa/Johannesburg', hour: '2-digit', minute: '2-digit' })}</text>
-    <text x="688" y="210" textAnchor="end">{new Date(last).toLocaleTimeString('en-ZA', { timeZone: 'Africa/Johannesburg', hour: '2-digit', minute: '2-digit' })} SAST</text>
-  </svg><figcaption>{values.length} readings · {formatTimestamp(values[0].measuredAtUtc)} to {formatTimestamp(values.at(-1)!.measuredAtUtc)} SAST</figcaption></figure>
+  const x = (timestamp: string) => 62 + (Date.parse(timestamp) - first) / (last - first || 1) * 792
+  const y = (value: number) => 244 - (value - min) / (max - min) * 214
+  const points = values.map(item => `${x(item.measuredAtUtc)},${y(item.value)}`).join(' ')
+  return <figure className="readings-chart"><svg viewBox="0 0 880 290" role="img" aria-label={`Recent measurements in ${values[0].unit}`}>
+    <title>{values.length} persisted readings; actual values {low}–{high} {values[0].unit}</title>
+    {[0, 1, 2, 3, 4].map(index => { const value = min + (max - min) * index / 4; return <g key={index}><line x1="62" x2="854" y1={y(value)} y2={y(value)} className="chart-grid" /><text x="48" y={y(value) + 4} textAnchor="end">{Number(value.toFixed(1))}</text></g> })}
+    {[0, 1, 2, 3, 4].map(index => { const timestamp = new Date(first + (last - first) * index / 4).toISOString(); return <text key={index} x={x(timestamp)} y="270" textAnchor={index === 0 ? 'start' : index === 4 ? 'end' : 'middle'}>{clockTime(timestamp).replace(' SAST', '')}</text> })}
+    <polyline points={points} fill="none" stroke="var(--brand-green)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    {values.map(item => <circle key={item.id} cx={x(item.measuredAtUtc)} cy={y(item.value)} r="2.5" fill="var(--brand-green)"><title>{readingTime(item.measuredAtUtc)} SAST · {item.value} {item.unit}</title></circle>)}
+  </svg><figcaption>{readingTime(values[0].measuredAtUtc)} – {readingTime(values.at(-1)!.measuredAtUtc)} SAST · {values[0].unit === 'adc' ? 'Raw counts; not calibrated moisture percentages.' : values[0].unit}</figcaption></figure>
 }

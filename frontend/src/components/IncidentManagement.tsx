@@ -6,7 +6,7 @@ import type { Incident, IncidentEvent } from '../lib/incidents'
 import IncidentRecord from './IncidentRecord'
 import LocationPicker from './LocationPicker'
 
-export default function IncidentManagement({ initialIncident }: { initialIncident: Incident }) {
+export default function IncidentManagement({ initialIncident, onUpdated }: { initialIncident: Incident; onUpdated?: (timestamp: string) => void }) {
   const [incident, setIncident] = useState(initialIncident)
   const [events, setEvents] = useState<IncidentEvent[]>([])
   const [historyError, setHistoryError] = useState('')
@@ -33,6 +33,7 @@ export default function IncidentManagement({ initialIncident }: { initialInciden
       const saved = await action()
       if ('status' in saved) { setIncident(saved); setPriority(saved.priority ?? 'Medium'); setAssignedTo(saved.assignedTo ?? '') }
       else setIncident(current => ({ ...current, updatedAtUtc: saved.createdAtUtc }))
+      onUpdated?.('status' in saved ? saved.updatedAtUtc ?? saved.createdAtUtc : saved.createdAtUtc)
       reset(); setNotice(message); await loadHistory()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'We couldn’t save your changes.') }
     finally { setBusy(false) }
@@ -47,11 +48,11 @@ export default function IncidentManagement({ initialIncident }: { initialInciden
   return <>
     {notice && <div className="success-banner" role="status">{notice}</div>}
     {error && <div className="error-banner" role="alert">{error} </div>}
-    <IncidentRecord incident={incident} />
+    <div className="incident-detail-grid"><div className="incident-report-column"><IncidentRecord incident={incident} />
     {incident.latitude != null && incident.longitude != null && <section className="record-card"><h2>Reported location</h2><LocationPicker value={{ latitude: incident.latitude, longitude: incident.longitude }} onChange={() => {}} readOnly /></section>}
-    <div className="management-grid">
+    </div><div className="incident-action-column"><div className="management-grid">
       <form className="record-card management-form" onSubmit={statusSubmit} aria-label="Report progress">
-        <h2>Report progress</h2><p>Current: <strong>{statusLabel(incident.status)}</strong></p>
+        <h2>Report Status</h2><p>Current: <strong>{statusLabel(incident.status)}</strong></p>
         <label htmlFor="status-note">{next === 'Resolved' ? 'Resolution details (required)' : 'Progress note (staff only)'}</label>
         <textarea id="status-note" value={statusNote} onChange={event => setStatusNote(event.target.value)} maxLength={2000} required={next === 'Resolved'} disabled={busy} rows={3} />
         <p className="field-hint">Residents can see the status change. Your note stays private.</p>
@@ -72,6 +73,6 @@ export default function IncidentManagement({ initialIncident }: { initialInciden
     </div>
     <section className="record-card" aria-label="Activity history"><h2>Activity history</h2>{historyError && <div role="alert" className="error-banner">{historyError}<button className="button button-secondary" onClick={() => void loadHistory()}>Try again</button></div>}
       <ol className="activity-timeline">{events.map(event => <li key={event.id}><strong>{event.eventType === 'StatusChanged' ? `${statusLabel(event.oldStatus ?? '')} → ${statusLabel(event.newStatus ?? '')}` : ({ Created: 'Report received', PriorityChanged: 'Priority changed', AssignmentChanged: 'Assignment changed', NoteAdded: 'Staff note' } as Record<string,string>)[event.eventType] ?? 'Report updated'}</strong><span className="event-visibility">{event.isPublic ? 'Status shared · note private' : 'Staff only'}</span>{event.note && <p className="record-description">{event.note}</p>}<p>Recorded by: {event.actorIdentifier}</p><time dateTime={event.createdAtUtc}>{formatTimestamp(event.createdAtUtc)} SAST</time></li>)}</ol>
-    </section>
+    </section></div></div>
   </>
 }

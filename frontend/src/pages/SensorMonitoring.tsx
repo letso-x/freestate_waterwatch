@@ -1,59 +1,51 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Activity, AlertCircle, Droplets, RefreshCw } from 'lucide-react'
-import { ProductFooter } from '../components/PublicLayout'
+import { RefreshCw } from 'lucide-react'
+import OperationsLayout from '../components/OperationsLayout'
 import ReadingsChart from '../components/ReadingsChart'
-import { getSensors, getSensorReadings } from '../lib/api'
-import type { Sensor, TelemetryReading } from '../lib/sensors'
-import { freshness, measurementLabel, sourceLabel } from '../lib/sensors'
-import { formatTimestamp } from '../lib/incidents'
+import { useSensorMonitoring } from '../lib/useSensorMonitoring'
+import { freshness, sourceLabel, measurementLabel } from '../lib/sensors'
+import { readingTime, clockTime } from '../lib/display'
 
 export default function SensorMonitoring() {
-  const [sensors, setSensors] = useState<Sensor[]>([])
-  const [selectedId, setSelectedId] = useState('')
-  const [readings, setReadings] = useState<TelemetryReading[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [readingError, setReadingError] = useState('')
-  const [readingLoading, setReadingLoading] = useState(false)
-  const [revision, setRevision] = useState(0)
-  const [now, setNow] = useState(Date.now())
-  const refresh = useCallback(() => setRevision(x => x + 1), [])
-  useEffect(() => { const interval = window.setInterval(() => { setNow(Date.now()); refresh() }, 30000); return () => clearInterval(interval) }, [refresh])
-  useEffect(() => {
-    const controller = new AbortController(); setLoading(true); setError('')
-    void getSensors(controller.signal).then(result => {
-      if (controller.signal.aborted) return
-      setSensors(result); setNow(Date.now())
-      setSelectedId(current => result.some(x => x.id === current) ? current : result[0]?.id ?? '')
-    }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'We couldn’t load the sensors.') })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
-  }, [revision])
-  useEffect(() => {
-    if (!selectedId) return
-    const controller = new AbortController(); setReadingLoading(true); setReadingError(''); setReadings([])
-    void getSensorReadings(selectedId, controller.signal).then(result => { if (!controller.signal.aborted) setReadings(result) })
-      .catch(cause => { if (!controller.signal.aborted) setReadingError(cause instanceof Error ? cause.message : 'We couldn’t load recent readings.') })
-      .finally(() => { if (!controller.signal.aborted) setReadingLoading(false) })
-    return () => controller.abort()
-  }, [selectedId, revision])
-  const selected = sensors.find(x => x.id === selectedId)
-  const anomalies = sensors.filter(x => x.activeAnomaly)
-  return <div className="public-shell sensor-shell">
-    <a className="skip-link" href="#sensor-main">Skip to sensors</a>
-    <header className="public-header"><Link to="/operations" className="brand"><span className="brand-symbol"><Droplets size={26} /></span><span>WaterWatch<small>FREE STATE</small></span></Link><nav aria-label="Water management navigation"><Link to="/operations">Reports</Link><Link to="/operations/sensors" aria-current="page">Sensor monitoring</Link><Link to="/report">Resident portal</Link></nav></header>
-    <main id="sensor-main" className="public-main sensor-main" tabIndex={-1}>
-      <section className="page-heading"><div><span className="eyebrow">WATER MANAGEMENT</span><h1>Sensor monitoring</h1><p>Review moisture readings and changes that need investigation.</p></div><button className="button button-secondary" onClick={refresh} disabled={loading}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />Refresh</button></section>
-      {error && <div className="error-banner" role="alert"><AlertCircle size={20} /><span>{error}{sensors.length > 0 ? ' Previously loaded sensors are shown below.' : ''}</span><button className="button button-secondary" onClick={refresh}>Try again</button></div>}
-      {loading && sensors.length === 0 && <p role="status">Loading sensors…</p>}
-      {!loading && !error && sensors.length === 0 && <section className="record-card sensor-empty"><Activity size={30} /><h2>No sensors registered</h2><p>Registered sensors and their measurements will appear here.</p></section>}
-      {anomalies.length > 0 && <section className="sensor-anomalies" aria-label="Suspected anomalies"><h2>Needs investigation <span className="count-badge">{anomalies.length}</span></h2><p>Unusual moisture readings indicate a suspected issue. They do not confirm a water leak.</p>{anomalies.map(sensor => <article className="anomaly-card" key={sensor.id}><div><strong>{sensor.name}</strong><span className={`source-label source-${sensor.source}`}>{sourceLabel(sensor.source)}</span><p>{sensor.location} · {sensor.activeAnomaly!.consecutiveReadings} consecutive abnormal readings</p><p>First flagged {formatTimestamp(sensor.activeAnomaly!.startedAtUtc)} SAST · Threshold {sensor.activeAnomaly!.direction === 'Above' ? '≥' : '≤'} {sensor.activeAnomaly!.threshold} {sensor.unit}</p></div><button className="button button-secondary" onClick={() => setSelectedId(sensor.id)}>View readings</button></article>)}</section>}
-      {sensors.length > 0 && <div className="sensor-grid"><section className="record-card sensor-directory" aria-label="Registered sensors"><h2>Registered sensors <span className="count-badge">{sensors.length}</span></h2><div className="sensor-list">{sensors.map(sensor => <button key={sensor.id} className={`sensor-choice ${selectedId === sensor.id ? 'selected' : ''}`} onClick={() => setSelectedId(sensor.id)} aria-pressed={selectedId === sensor.id}><strong>{sensor.name}</strong><span>{sensor.location}</span><span className={`source-label source-${sensor.source}`}>{sourceLabel(sensor.source)}</span><span className={`sensor-freshness ${freshness(sensor, now) === 'Receiving readings' ? 'recent' : ''}`}>{freshness(sensor, now)}</span><b>{sensor.latestValue == null ? 'No measurement' : `${sensor.latestValue.toLocaleString('en-ZA')} ${sensor.unit}`}</b></button>)}</div></section>
-        {selected && <section className="record-card sensor-detail" aria-label="Sensor readings"><div className="record-heading"><div><span className="eyebrow">{measurementLabel(selected.measurementType)}</span><h2>{selected.name}</h2></div><span className={`source-label source-${selected.source}`}>{sourceLabel(selected.source)}</span></div><p>{selected.location}</p><dl className="sensor-summary"><div><dt>Latest measurement</dt><dd>{selected.latestValue == null ? '—' : `${selected.latestValue.toLocaleString('en-ZA')} ${selected.unit}`}</dd></div><div><dt>Last reading</dt><dd>{selected.lastMeasuredAtUtc ? `${formatTimestamp(selected.lastMeasuredAtUtc)} SAST` : 'No readings yet'}</dd></div><div><dt>Reading activity</dt><dd>{freshness(selected, now)}</dd></div></dl>
-          <h3>Recent readings</h3>{readingLoading && <p role="status">Loading measurements…</p>}{readingError && <div className="error-banner" role="alert">{readingError}<button className="button button-secondary" onClick={refresh}>Try again</button></div>}{!readingLoading && !readingError && <><ReadingsChart readings={readings} />{readings.length > 0 && <div className="readings-table-wrap"><table className="readings-table"><caption>Latest measurements · {sourceLabel(selected.source)}</caption><thead><tr><th scope="col">Measured at (SAST)</th><th scope="col">Value</th><th scope="col">Assessment</th></tr></thead><tbody>{readings.slice(0, 10).map(reading => <tr key={reading.id}><td><time dateTime={reading.measuredAtUtc}>{formatTimestamp(reading.measuredAtUtc)}</time></td><td>{reading.value.toLocaleString('en-ZA')} {reading.unit}<small>{sourceLabel(reading.source)}</small></td><td>{reading.isAbnormal ? 'Outside expected range' : 'Within expected range'}</td></tr>)}</tbody></table></div>}</>}
-        </section>}
-      </div>}
-    </main><ProductFooter />
-  </div>
+  const { sensors, selectedId, readings, loading, loaded, readingLoading, error, readingError, updatedAt, now, refresh, selectSensor } = useSensorMonitoring()
+  const selected = sensors.find(sensor => sensor.id === selectedId)
+  const anomalies = sensors.filter(sensor => sensor.activeAnomaly)
+  const active = sensors.filter(sensor => freshness(sensor, now) === 'Receiving readings').length
+  const attention = sensors.filter(sensor => sensor.activeAnomaly || freshness(sensor, now) !== 'Receiving readings').length
+  const time = (value: string | null | undefined) => value ? <time dateTime={value}>{readingTime(value)} SAST</time> : '—'
+  const observedIntervals = readings.slice(0, 11).slice(0, -1).map((item, index) => (Date.parse(item.measuredAtUtc) - Date.parse(readings[index + 1].measuredAtUtc)) / 1000).filter(value => value > 0).sort((a, b) => a - b)
+  const observedInterval = observedIntervals.length ? Math.round(observedIntervals[Math.floor(observedIntervals.length / 2)]) : null
+  return <OperationsLayout title="Sensor Monitoring" connection={error || readingError ? 'error' : loaded ? 'connected' : 'loading'} updatedAt={updatedAt}>
+    <section className="workspace-heading"><div><h1>Sensor Monitoring</h1><p>Last Reading {selected?.lastMeasuredAtUtc ? clockTime(selected.lastMeasuredAtUtc) : '—'}</p></div><button className="button button-secondary" onClick={refresh} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} />Refresh</button></section>
+    {error && <div className="error-banner" role="alert"><span>{error}{sensors.length ? ' Previously loaded sensors are shown below.' : ''}</span><button className="button button-secondary" onClick={refresh}>Try again</button></div>}
+    {anomalies.length > 0 && <section className="attention-panel" aria-label="Suspected anomalies"><h2>Needs Attention · Suspected anomalies</h2><p>Configured rules have flagged readings for investigation. They do not confirm a water leak.</p>{anomalies.map(sensor => <div className="attention-entry" key={sensor.id}><div><strong>{sensor.name}</strong><span className={`source-label source-${sensor.source}`}>{sourceLabel(sensor.source)}</span><p>{sensor.activeAnomaly!.consecutiveReadings} consecutive readings crossed the configured {sensor.activeAnomaly!.direction === 'Above' ? 'upper' : 'lower'} threshold of {sensor.activeAnomaly!.threshold} {sensor.unit}, with a baseline deviation of at least {sensor.activeAnomaly!.minimumDeviation} {sensor.unit}. Flagged {time(sensor.activeAnomaly!.startedAtUtc)}.</p></div><button className="button button-secondary" onClick={() => selectSensor(sensor.id)}>View readings</button></div>)}</section>}
+    <section className="information-strip" aria-label="Sensor summary">
+      <div><span>Active sensors</span><strong>{loaded ? `${active} / ${sensors.length}` : '—'}</strong></div>
+      <div><span>Latest measurement</span><strong>{selected?.latestValue != null ? `${selected.latestValue.toLocaleString('en-ZA')} ${selected.unit}` : '—'}</strong></div>
+      <div><span>Sensors requiring attention</span><strong>{loaded ? attention : '—'}</strong></div>
+      <div><span>Last received</span><strong className="timestamp-value">{time(selected?.lastReceivedAtUtc)}</strong></div>
+    </section>
+    {loading && !loaded && <p role="status" className="workspace-state">Loading sensors…</p>}
+    {loaded && !sensors.length && <section className="surface workspace-state"><h2>No sensors registered</h2><p>Registered sensors and their measurements will appear here.</p></section>}
+    {selected && <>
+      <div className="monitoring-columns">
+        <section className="surface chart-surface" aria-label="Sensor readings"><div className="surface-heading"><h2>Historical readings</h2><label className="sensor-selector">Sensor<select aria-label="Registered sensors" value={selectedId} onChange={event => selectSensor(event.target.value)}>{sensors.map(sensor => <option key={sensor.id} value={sensor.id}>{sensor.name}</option>)}</select></label></div>
+          <div className="chart-meta"><span>{selected.name} · {sourceLabel(selected.source)}</span><span>{measurementLabel(selected.measurementType)} · {selected.unit === 'adc' ? 'Raw ADC' : selected.unit}</span></div>
+          {readingError && <div className="error-banner" role="alert"><span>{readingError}{readings.length ? ' Showing the last loaded measurements.' : ''}</span><button className="button button-secondary" onClick={refresh}>Try again</button></div>}
+          {readingLoading && !readings.length ? <p className="workspace-state" role="status">Loading measurements…</p> : !readingError || readings.length ? <ReadingsChart readings={readings} /> : null}
+          <div className="chart-footer"><span>{readings.length} persisted readings</span><span>Refresh interval: 10 seconds</span></div>
+        </section>
+        <aside className="surface sensor-facts" aria-label="Sensor details"><div className="surface-heading"><h2>Sensor details</h2></div><dl>
+          <div><dt>Sensor</dt><dd>{selected.name}<small>{selected.sensorKey}</small></dd></div><div><dt>Location</dt><dd>{selected.location}</dd></div>
+          <div><dt>Source</dt><dd><span className={`source-label source-${selected.source}`}>{sourceLabel(selected.source)}</span></dd></div>
+          <div><dt>Reading activity</dt><dd className={freshness(selected, now) === 'Receiving readings' ? 'healthy-text' : 'warning-text'}>{freshness(selected, now)}</dd></div>
+          <div><dt>Expected interval</dt><dd>10 seconds</dd></div><div><dt>Observed interval</dt><dd>{observedInterval != null ? `${observedInterval} seconds` : 'Not enough readings'}</dd></div>
+          <div><dt>Current alert state</dt><dd>{selected.activeAnomaly ? 'Needs investigation' : 'No active configured alert'}</dd></div>
+        </dl></aside>
+      </div>
+      <section className="surface measurements-surface"><div className="surface-heading"><h2>Recent measurements</h2><span>{selected.name}</span></div><div className="table-scroll" tabIndex={0} aria-label="Scroll measurements table"><table className="data-table measurements-table"><caption className="visually-hidden">Latest measurements · {sourceLabel(selected.source)} · times in SAST</caption><thead><tr><th scope="col">Time (SAST)</th><th scope="col">Sensor</th><th scope="col">{selected.unit === 'adc' ? 'Raw ADC value' : `Value (${selected.unit})`}</th><th scope="col">Change from previous</th><th scope="col">Status</th></tr></thead><tbody>{readings.map((reading, index) => {
+        const previous = readings[index + 1]; const delta = previous && previous.source === reading.source ? reading.value - previous.value : null
+        return <tr key={reading.id}><td><time dateTime={reading.measuredAtUtc}>{readingTime(reading.measuredAtUtc)}</time></td><td>{selected.name}<small>{sourceLabel(reading.source)}</small></td><td className="numeric-cell">{reading.value.toLocaleString('en-ZA')} {reading.unit}</td><td className="numeric-cell">{delta == null ? '—' : `${delta > 0 ? '+' : ''}${Number(delta.toFixed(3))} ${reading.unit}`}</td><td><span className={`assessment ${reading.isAbnormal ? 'assessment-warning' : ''}`}>{reading.isAbnormal ? 'Rule flagged' : 'Not flagged'}</span></td></tr>
+      })}</tbody></table>{!readings.length && !readingLoading && <p className="workspace-state">No measurements recorded.</p>}</div></section>
+    </>}
+  </OperationsLayout>
 }

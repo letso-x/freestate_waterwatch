@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.mocked(createIncident).mockReset()
   Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined })
 })
-function open(path = '/operations') { return render(<MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter>) }
+function open(path = '/operations/incidents') { return render(<MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter>) }
 async function fill() {
   const user = userEvent.setup({ delay: null })
   await user.click(screen.getByLabelText(/Report title/)); await user.paste(report.title)
@@ -47,7 +47,7 @@ describe('municipal monitoring', () => {
     expect(await screen.findByText('No reports yet')).toBeInTheDocument()
     expect(screen.getByText(/Showing 0 of 0 reports/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Report incident|Send report/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Resident portal/ })).toHaveAttribute('href', '/report')
+    expect(screen.getByRole('link', { name: /Resident reporting portal/ })).toHaveAttribute('href', '/report')
     expect(screen.queryByText('Hackathon Prototype')).not.toBeInTheDocument()
     expect(screen.getByRole('contentinfo')).toHaveTextContent('Not an official Mangaung municipal service.')
   })
@@ -55,15 +55,15 @@ describe('municipal monitoring', () => {
     vi.mocked(getIncidents).mockResolvedValue([report])
     const user = userEvent.setup({ delay: null })
     open()
-    expect(await screen.findByRole('heading', { name: report.title })).toBeInTheDocument()
-    expect(screen.getByText(report.description)).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: report.title })).toBeInTheDocument()
+    expect(screen.getByRole('table')).toHaveTextContent(report.title)
     expect(screen.getByText(report.location)).toBeInTheDocument()
     expect(screen.getAllByText(/29 Oct 2026/).length).toBeGreaterThan(0)
     await user.selectOptions(screen.getByLabelText('Status'), 'Reported')
     await user.click(screen.getByLabelText('Search reports')); await user.paste('not found')
     expect(screen.getByText('No matching reports')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
-    expect(screen.getByRole('heading', { name: report.title })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: report.title })).toBeInTheDocument()
   })
   it('recovers from fetch failure on retry', async () => {
     vi.mocked(getIncidents).mockRejectedValueOnce(new Error('The API is offline.')).mockResolvedValue([])
@@ -80,6 +80,7 @@ describe('municipal monitoring', () => {
     await user.click(await screen.findByRole('link', { name: report.title }))
     expect(await screen.findByRole('heading', { name: 'Report details' })).toBeInTheDocument()
     expect(await screen.findByText('-29.120000, 26.210000')).toBeInTheDocument()
+    expect(screen.getByText(report.description)).toBeInTheDocument()
     expect(getIncident).toHaveBeenCalledWith(report.id, expect.any(AbortSignal))
   })
 })
@@ -186,7 +187,7 @@ describe('resident tracking', () => {
     const user = userEvent.setup({ delay: null })
     await user.click(screen.getByLabelText('Reference number')); await user.paste(report.id)
     await user.click(screen.getByRole('button', { name: 'Track report' }))
-    expect(await screen.findByRole('heading', { name: report.title })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: report.title })).toBeInTheDocument()
     expect(getIncidents).not.toHaveBeenCalled()
   })
   it('shows not-found feedback for an unknown reference', async () => {
