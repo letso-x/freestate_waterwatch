@@ -1,26 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { AlertCircle, ArrowRight, Check, LoaderCircle, MapPin, LocateFixed } from 'lucide-react'
-import { ApiError, createIncident } from '../lib/api'
+import { AlertCircle, ArrowRight, LoaderCircle, MapPin, LocateFixed, X } from 'lucide-react'
+import { ApiError, createIncident, uploadReportPhoto } from '../lib/api'
 import { validateIncident } from '../lib/incidents'
 import type { CreateIncidentRequest, FormErrors, Incident } from '../lib/incidents'
 import LocationPicker from './LocationPicker'
 
 interface Props { onCreated: (incident: Incident) => Promise<void> }
+interface SelectedPhoto { id: string; file: File; previewUrl: string; uploaded: boolean; error: string }
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const MAX_PHOTOS = 3
 
 export default function ReportIncident({ onCreated }: Props) {
   const formRegion = useRef<HTMLElement>(null)
   const mounted = useRef(true)
+  const previewUrls = useRef<string[]>([])
   const [values, setValues] = useState<CreateIncidentRequest>({ title: '', description: '', location: '' })
   const [errors, setErrors] = useState<FormErrors>({})
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [locating, setLocating] = useState(false)
   const [locationMessage, setLocationMessage] = useState('')
+  const [photos, setPhotos] = useState<SelectedPhoto[]>([])
+  const [photoError, setPhotoError] = useState('')
+  const [createdIncident, setCreatedIncident] = useState<Incident | null>(null)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  useEffect(() => () => { for (const url of previewUrls.current) URL.revokeObjectURL(url) }, [])
 
   function selectCoordinates(point: { latitude: number; longitude: number }) {
     setLatitude(point.latitude.toFixed(6)); setLongitude(point.longitude.toFixed(6))
@@ -49,8 +57,60 @@ export default function ReportIncident({ onCreated }: Props) {
     setErrors(current => ({ ...current, [field]: undefined }))
   }
 
+  function selectPhotos(files: FileList | null) {
+    if (!files) return
+    const incoming = Array.from(files)
+    const next = [...photos]
+    const messages: string[] = []
+    for (const file of incoming) {
+      if (next.length >= MAX_PHOTOS) { messages.push(`You can add up to ${MAX_PHOTOS} photos.`); break }
+      if (!PHOTO_TYPES.includes(file.type)) { messages.push(`${file.name}: choose a JPEG, PNG or WebP photo.`); continue }
+      if (file.size === 0 || file.size > MAX_PHOTO_BYTES) { messages.push(`${file.name}: each photo must be 5 MB or smaller.`); continue }
+      const previewUrl = URL.createObjectURL(file)
+      previewUrls.current.push(previewUrl)
+      next.push({ id: crypto.randomUUID(), file, previewUrl, uploaded: false, error: '' })
+    }
+    setPhotos(next)
+    setPhotoError(messages.join(' '))
+  }
+
+  function removePhoto(id: string) {
+    const photo = photos.find(item => item.id === id)
+    if (photo) { URL.revokeObjectURL(photo.previewUrl); previewUrls.current = previewUrls.current.filter(url => url !== photo.previewUrl) }
+    setPhotos(current => current.filter(item => item.id !== id))
+    setPhotoError('')
+  }
+
+  async function uploadPendingPhotos(incident: Incident) {
+    const failed: string[] = []
+    for (const photo of photos.filter(item => !item.uploaded)) {
+      setPhotos(current => current.map(item => item.id === photo.id ? { ...item, error: '', uploaded: false } : item))
+      try {
+        await uploadReportPhoto(incident.id, photo.file, photo.id)
+        setPhotos(current => current.map(item => item.id === photo.id ? { ...item, uploaded: true, error: '' } : item))
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : 'Upload failed.'
+        failed.push(`${photo.file.name}: ${message}`)
+        setPhotos(current => current.map(item => item.id === photo.id ? { ...item, error: message } : item))
+      }
+    }
+    if (failed.length) {
+      setError(`Report saved as ${incident.id}. These photos were not uploaded: ${failed.join(' ')}`)
+      return
+    }
+    await onCreated(incident)
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (createdIncident) {
+      setSubmitting(true)
+      setError('')
+      try { await uploadPendingPhotos(createdIncident) }
+      catch (cause) { setError(cause instanceof Error ? cause.message : 'The confirmation page could not be opened.') }
+      finally { setSubmitting(false) }
+      return
+    }
     const input: CreateIncidentRequest = { ...values,
       ...(latitude.trim() ? { latitude: Number(latitude) } : {}),
       ...(longitude.trim() ? { longitude: Number(longitude) } : {}),
@@ -65,16 +125,14 @@ export default function ReportIncident({ onCreated }: Props) {
     setSubmitting(true)
     setError('')
     try {
-      const incident = await createIncident({
-        ...input, title: values.title.trim(), description: values.description.trim(), location: values.location.trim(),
-      })
-      setSaved(true)
-      await onCreated(incident)
+      const report = { ...input, title: values.title.trim(), description: values.description.trim(), location: values.location.trim() }
+      const incident = photos.length ? await createIncident(report, true) : await createIncident(report)
+      setCreatedIncident(incident)
+      await uploadPendingPhotos(incident)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The report could not be submitted. Please try again.')
       if (cause instanceof ApiError) setErrors(cause.fieldErrors)
-      setSubmitting(false)
-    }
+    } finally { if (mounted.current) setSubmitting(false) }
   }
 
   return <section ref={formRegion} className="report-card" aria-labelledby="report-heading">
@@ -89,17 +147,17 @@ export default function ReportIncident({ onCreated }: Props) {
         <label htmlFor="report-title">Report title <span aria-hidden="true">*</span></label>
         <input autoFocus id="report-title" name="title" placeholder="e.g. Burst pipe outside the library"
           value={values.title} onChange={event => update('title', event.target.value)} maxLength={150}
-          required aria-invalid={!!errors.title} aria-describedby={errors.title ? 'title-error' : 'title-hint'} disabled={submitting} />
+          required aria-invalid={!!errors.title} aria-describedby={errors.title ? 'title-error' : 'title-hint'} disabled={submitting || !!createdIncident} />
         {errors.title ? <span className="field-error" id="title-error">{errors.title}</span> : <span className="field-hint" id="title-hint">Summarise the problem in a few words.</span>}
       </div>
       <div className="form-field">
         <label htmlFor="report-location">Location <span aria-hidden="true">*</span></label>
         <div className="input-with-icon"><MapPin size={17} /><input id="report-location" name="location"
           placeholder="Street, landmark and town" value={values.location} onChange={event => update('location', event.target.value)}
-          maxLength={300} required aria-invalid={!!errors.location} aria-describedby={errors.location ? 'location-error' : 'location-hint'} disabled={submitting} /></div>
+          maxLength={300} required aria-invalid={!!errors.location} aria-describedby={errors.location ? 'location-error' : 'location-hint'} disabled={submitting || !!createdIncident} /></div>
         {errors.location ? <span className="field-error" id="location-error">{errors.location}</span> : <span className="field-hint" id="location-hint">Include the street, a nearby landmark and the town.</span>}
       </div>
-      <fieldset className="location-fieldset" disabled={submitting}>
+      <fieldset className="location-fieldset" disabled={submitting || !!createdIncident}>
         <legend>Choose a location <span>Optional</span></legend>
         <p className="field-hint">Place a pin where the problem is, then check that it matches the address.</p>
         <button type="button" className="button button-secondary gps-button" onClick={useGps} disabled={locating}><LocateFixed size={17} />{locating ? 'Locating…' : 'Use my current location'}</button>
@@ -115,15 +173,32 @@ export default function ReportIncident({ onCreated }: Props) {
         <label htmlFor="report-description">What did you notice? <span aria-hidden="true">*</span></label>
         <textarea id="report-description" name="description" rows={4} placeholder="Describe the leak or water issue and any useful details…"
           value={values.description} onChange={event => update('description', event.target.value)} maxLength={2000}
-          required aria-invalid={!!errors.description} aria-describedby={errors.description ? 'description-error' : 'description-hint'} disabled={submitting} />
+          required aria-invalid={!!errors.description} aria-describedby={errors.description ? 'description-error' : 'description-hint'} disabled={submitting || !!createdIncident} />
         {errors.description ? <span className="field-error" id="description-error">{errors.description}</span> : <span className="field-hint" id="description-hint">Include useful details, such as how much water is flowing. Leave out personal information.</span>}
       </div>
-      <p className="attachment-note">Photo attachments aren’t available yet. Please include useful details in your description.</p>
+      <section className="photo-upload" aria-label="Incident photos">
+        <div><label className="button button-secondary photo-picker" htmlFor="report-photos">Add photos</label>
+          <input id="report-photos" className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple
+            disabled={submitting || !!createdIncident || photos.length >= MAX_PHOTOS} onChange={event => { selectPhotos(event.target.files); event.target.value = '' }} />
+          <label className="button button-secondary photo-picker" htmlFor="report-camera">Take photo</label>
+          <input id="report-camera" className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"
+            disabled={submitting || !!createdIncident || photos.length >= MAX_PHOTOS} onChange={event => { selectPhotos(event.target.files); event.target.value = '' }} />
+          <p className="attachment-note">Optional · Up to 3 photos, 5 MB each. JPEG, PNG or WebP.</p>
+        </div>
+        {photoError && <p className="field-error" role="alert">{photoError}</p>}
+        {photos.length > 0 && <ul className="photo-previews">{photos.map(photo => <li className="photo-preview" key={photo.id}>
+          <img src={photo.previewUrl} alt={`Preview: ${photo.file.name}`} />
+          <span>{photo.file.name}</span>
+          {photo.uploaded ? <small role="status">Uploaded</small> : photo.error ? <small className="field-error">{photo.error}</small> : null}
+          {!photo.uploaded && <button type="button" className="icon-button" aria-label={`Remove ${photo.file.name}`} onClick={() => removePhoto(photo.id)} disabled={submitting}><X size={15} /></button>}
+        </li>)}</ul>}
+      </section>
       {error && <div className="error-banner" role="alert"><AlertCircle size={18} /><span>{error}</span></div>}
       <div className="dialog-footer">
 
+        {createdIncident && <button type="button" className="button button-secondary" disabled={submitting} onClick={() => void onCreated(createdIncident)}>Continue to confirmation</button>}
         <button type="submit" className="button button-primary" disabled={submitting || locating}>
-          {submitting ? <>{saved ? <Check size={17} /> : <LoaderCircle className="animate-spin" size={17} />}{saved ? 'Report saved…' : 'Sending…'}</> : <>Send report <ArrowRight size={17} /></>}
+          {submitting ? <><LoaderCircle className="animate-spin" size={17} />{createdIncident ? 'Uploading photos…' : 'Sending…'}</> : createdIncident ? <>Retry photo uploads <ArrowRight size={17} /></> : <>Send report <ArrowRight size={17} /></>}
         </button>
       </div>
     </form>

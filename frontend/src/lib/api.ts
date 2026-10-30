@@ -26,7 +26,7 @@ function endpoint(path: string): string {
 }
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
-  const privileged = path.startsWith('/api/incidents') && (options.method ?? 'GET') !== 'POST' || /\/api\/incidents\/[^/]+\/notes/.test(path) || path.startsWith('/api/sensors')
+  const privileged = path.startsWith('/api/incidents') && (options.method ?? 'GET') !== 'POST' || /\/api\/incidents\/[^/]+\/(?:notes|attachments)(?:\/|$)/.test(path) || path.startsWith('/api/sensors')
   const headers = new Headers(options.headers)
   if (privileged && operatorToken) headers.set('Authorization', 'Bearer ' + operatorToken)
   let response: Response
@@ -65,10 +65,59 @@ export async function getIncidents(signal?: AbortSignal): Promise<Incident[]> {
   return [...all.values()].sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc) || b.id.localeCompare(a.id))
 }
 
-export function createIncident(input: CreateIncidentRequest): Promise<Incident> {
+export function createIncident(input: CreateIncidentRequest, requestPhotoUploadCapability = false): Promise<Incident> {
   return request<Incident>('/api/incidents', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestPhotoUploadCapability ? { ...input, requestPhotoUploadCapability: true } : input),
+    ...(requestPhotoUploadCapability ? { credentials: 'include' as const } : {}),
   })
+}
+
+export type AttachmentType = 'ReportEvidence' | 'RepairEvidence'
+export interface IncidentAttachmentResponse { id: string; attachmentType: AttachmentType; createdAtUtc: string }
+
+export async function uploadReportPhoto(id: string, photo: File, uploadId?: string): Promise<IncidentAttachmentResponse> {
+  const form = new FormData()
+  form.append('photo', photo)
+  if (uploadId) form.append('uploadId', uploadId)
+  try {
+    return await request(`/api/public/incidents/${encodeURIComponent(id)}/attachments`, {
+      method: 'POST', body: form, credentials: 'include',
+    })
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.status === 401) throw new ApiError('Photo upload permission is missing or has expired. Your report is already saved.', {}, 401)
+    throw cause
+  }
+}
+
+export async function getIncidentAttachments(id: string): Promise<IncidentAttachmentResponse[]> {
+  return request(`/api/incidents/${encodeURIComponent(id)}/attachments`, {})
+}
+
+export async function uploadRepairPhoto(id: string, photo: File, uploadId?: string): Promise<IncidentAttachmentResponse> {
+  const form = new FormData()
+  form.append('photo', photo)
+  if (uploadId) form.append('uploadId', uploadId)
+  return request(`/api/incidents/${encodeURIComponent(id)}/attachments`, { method: 'POST', body: form })
+}
+
+export async function getAttachmentImage(incidentId: string, attachmentId: string): Promise<Blob> {
+  const path = `/api/incidents/${encodeURIComponent(incidentId)}/attachments/${encodeURIComponent(attachmentId)}/content`
+  const headers = new Headers()
+  if (operatorToken) headers.set('Authorization', 'Bearer ' + operatorToken)
+  let response: Response
+  try {
+    response = await fetch(endpoint(path), {
+      headers: Object.fromEntries(headers.entries()),
+      signal: AbortSignal.timeout(20000),
+    })
+  } catch {
+    throw new ApiError('We couldn’t load this evidence photo. Check your connection and try again.')
+  }
+  if (!response.ok)
+    throw new ApiError(response.status === 401 ? 'Please sign in to continue.' : 'This evidence photo could not be loaded.', {}, response.status)
+  return response.blob()
 }
 
 export function getIncident(id: string, signal?: AbortSignal): Promise<Incident> {

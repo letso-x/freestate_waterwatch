@@ -91,6 +91,58 @@ namespace WaterWatch.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WaterWatch.Api.Models.IncidentAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AttachmentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncidentId", "AttachmentType", "CreatedAtUtc", "Id");
+
+                    b.ToTable("IncidentAttachments");
+                });
+
             modelBuilder.Entity("WaterWatch.Api.Models.IncidentEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -314,6 +366,15 @@ namespace WaterWatch.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("TelemetryReadings");
+                });
+
+            modelBuilder.Entity("WaterWatch.Api.Models.IncidentAttachment", b =>
+                {
+                    b.HasOne("WaterWatch.Api.Models.Incident", null)
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("WaterWatch.Api.Models.IncidentEvent", b =>

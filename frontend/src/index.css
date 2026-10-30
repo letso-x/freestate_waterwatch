@@ -206,7 +206,25 @@ textarea { resize: vertical; }
 .coordinate-grid .form-field { margin-bottom: 8px; }
 .coordinate-actions { font-size: 12px; line-height: 1.7; color: #526a59; }
 .coordinate-actions p { margin-top: 8px; }
-.attachment-note { font-size: 12px; line-height: 1.7; color: #6b7b70; margin: 0 0 18px; }
+.attachment-note { font-size: 12px; line-height: 1.7; color: #6b7b70; margin: 8px 0 0; }
+.photo-upload { margin: 0 0 18px; }
+.photo-picker { display: inline-flex; cursor: pointer; }
+.photo-previews, .evidence-list { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; padding: 0; margin: 12px 0 0; }
+.photo-preview { width: 120px; display: grid; gap: 5px; font-size: 11px; overflow-wrap: anywhere; }
+.photo-preview img, .evidence-thumbnail { width: 112px; height: 84px; object-fit: cover; border: 1px solid #cfd9d2; border-radius: 4px; background: #f3f6f3; }
+.photo-preview .icon-button { justify-self: start; }
+.evidence-card { margin-top: 16px; }
+.evidence-group + .evidence-group { border-top: 1px solid #e1e7e2; margin-top: 16px; padding-top: 12px; }
+.evidence-group h3 { font-size: 14px; margin: 0; }
+.evidence-list li { display: grid; gap: 6px; font-size: 11px; }
+.evidence-preview-button { border: 0; padding: 0; background: transparent; cursor: zoom-in; }
+.evidence-thumbnail { display: block; }
+.evidence-unavailable { background: #f3f6f3; }
+.repair-photo-form { display: grid; gap: 10px; border-top: 1px solid #e1e7e2; padding-top: 14px; margin-top: 16px; }
+.evidence-dialog-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgb(16 27 21 / 75%); }
+.evidence-dialog { position: relative; max-width: min(100%, 900px); max-height: 90vh; padding: 12px; background: white; border-radius: 5px; }
+.evidence-dialog img { display: block; max-width: 100%; max-height: calc(90vh - 24px); object-fit: contain; }
+.evidence-close { position: absolute; z-index: 1; top: 16px; right: 16px; background: white; }
 .dialog-footer { padding-top: 16px; border-top: 1px solid #e1e7e2; display: flex; justify-content: flex-end; }
 .public-footer { border-top: 1px solid #d3ddd5; padding: 18px 24px; font-size: 11px; color: #738176; display: flex; justify-content: space-between; align-items: center; gap: 18px; background: white; }
 .tracking-form { padding: 20px; border: 1px solid #cfd9d2; border-radius: 5px; background: white; margin-bottom: 20px; }

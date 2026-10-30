@@ -3,11 +3,11 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { AppRoutes } from './App'
-import { ApiError, createIncident, getIncident, getIncidents, getPublicTracking, getEvents } from './lib/api'
+import { ApiError, createIncident, getIncident, getIncidents, getPublicTracking, getEvents, getIncidentAttachments } from './lib/api'
 import type { Incident } from './lib/incidents'
 
 vi.mock('./lib/api', async importOriginal => ({
-  ...await importOriginal<typeof import('./lib/api')>(), getIncidents: vi.fn(), getIncident: vi.fn(), getPublicTracking: vi.fn(), getEvents: vi.fn(), createIncident: vi.fn(),
+  ...await importOriginal<typeof import('./lib/api')>(), getIncidents: vi.fn(), getIncident: vi.fn(), getPublicTracking: vi.fn(), getEvents: vi.fn(), getIncidentAttachments: vi.fn(), createIncident: vi.fn(),
 }))
 vi.mock('./components/OperatorAccess', () => ({ OperatorGate: ({ children }: { children: import('react').ReactNode }) => children, OperatorProvider: ({ children }: { children: import('react').ReactNode }) => children }))
 // The map adapter is tested separately; these route tests exercise the real form.
@@ -23,6 +23,7 @@ beforeEach(() => {
   vi.mocked(getIncident).mockReset().mockResolvedValue(report)
   vi.mocked(getPublicTracking).mockReset().mockResolvedValue({ id: report.id, title: report.title, locationDescription: 'Location recorded', status: report.status, createdAtUtc: report.createdAtUtc, updatedAtUtc: report.createdAtUtc, events: [] })
   vi.mocked(getEvents).mockReset().mockResolvedValue([])
+  vi.mocked(getIncidentAttachments).mockReset().mockResolvedValue([])
   vi.mocked(createIncident).mockReset()
   Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined })
 })
@@ -154,7 +155,7 @@ describe('independent resident portal', () => {
     expect(screen.getByLabelText('Latitude')).toHaveValue(-29.12)
     expect(screen.getByLabelText('Longitude')).toHaveValue(26.21)
   })
-  it('rejects an incomplete coordinate pair and states that photos are unavailable', async () => {
+  it('rejects an incomplete coordinate pair while keeping photo selection available', async () => {
     open('/report')
     const user = await fill()
     await user.type(screen.getByLabelText('Latitude'), '91')
@@ -162,8 +163,8 @@ describe('independent resident portal', () => {
     expect(screen.getByText('Latitude must be between -90 and 90.')).toBeInTheDocument()
     expect(screen.getByText('Supply both latitude and longitude, or clear both.')).toBeInTheDocument()
     expect(createIncident).not.toHaveBeenCalled()
-    expect(screen.getByText(/Photo attachments aren’t available yet/)).toBeInTheDocument()
-    expect(document.querySelector('input[type=file]')).toBeNull()
+    expect(screen.getByLabelText('Add photos')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp')
+    expect(screen.getByLabelText('Take photo')).toHaveAttribute('capture', 'environment')
   })
   it('does not fabricate a receipt for the direct success route', () => {
     open('/report/success')
@@ -187,7 +188,7 @@ describe('resident tracking', () => {
     const user = userEvent.setup({ delay: null })
     await user.click(screen.getByLabelText('Reference number')); await user.paste(report.id)
     await user.click(screen.getByRole('button', { name: 'Track report' }))
-    expect(await screen.findByRole('link', { name: report.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: report.title })).toBeInTheDocument()
     expect(getIncidents).not.toHaveBeenCalled()
   })
   it('shows not-found feedback for an unknown reference', async () => {

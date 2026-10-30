@@ -10,6 +10,7 @@ public sealed class WaterWatchDbContext(DbContextOptions<WaterWatchDbContext> op
     public DbSet<Sensor> Sensors => Set<Sensor>();
     public DbSet<TelemetryReading> TelemetryReadings => Set<TelemetryReading>();
     public DbSet<SensorAnomaly> SensorAnomalies => Set<SensorAnomaly>();
+    public DbSet<IncidentAttachment> IncidentAttachments => Set<IncidentAttachment>();
 
     private void EnforceAppendOnlyHistory()
     {
@@ -72,5 +73,15 @@ public sealed class WaterWatchDbContext(DbContextOptions<WaterWatchDbContext> op
         anomaly.HasIndex(x => x.SensorId).IsUnique().HasFilter("\"RecoveredAtUtc\" IS NULL");
         anomaly.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
         anomaly.Property(x => x.Direction).HasConversion<string>().HasMaxLength(16);
+        var attachment = modelBuilder.Entity<IncidentAttachment>();
+        attachment.HasKey(x => x.Id);
+        attachment.HasOne<Incident>().WithMany().HasForeignKey(x => x.IncidentId).OnDelete(DeleteBehavior.Restrict);
+        attachment.Property(x => x.StoragePath).HasMaxLength(300).IsRequired();
+        attachment.Property(x => x.OriginalFileName).HasMaxLength(255).IsRequired();
+        attachment.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+        attachment.Property(x => x.ContentType).HasMaxLength(32).IsRequired();
+        attachment.Property(x => x.AttachmentType).HasConversion<string>().HasMaxLength(32).IsRequired();
+        attachment.Property(x => x.UploadedBy).HasMaxLength(120).IsRequired();
+        attachment.HasIndex(x => new { x.IncidentId, x.AttachmentType, x.CreatedAtUtc, x.Id });
     }
 }

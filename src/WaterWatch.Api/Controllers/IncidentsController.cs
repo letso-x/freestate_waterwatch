@@ -4,21 +4,44 @@ using Microsoft.AspNetCore.Mvc;
 using WaterWatch.Api.Contracts;
 using WaterWatch.Api.Models;
 using WaterWatch.Api.Services;
+using Microsoft.AspNetCore.Http;
 
 namespace WaterWatch.Api.Controllers;
 
 [ApiController]
 [Route("api/incidents")]
 [Authorize(Policy = "Operator")]
-public sealed class IncidentsController(IncidentService service) : ControllerBase
+public sealed class IncidentsController(IncidentService service, ResidentUploadCapability capability, IncidentAttachmentStorage storage, IWebHostEnvironment environment) : ControllerBase
 {
     private string Actor => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     [HttpPost, AllowAnonymous]
     [ProducesResponseType<Incident>(201)]
     [ProducesResponseType<ValidationProblemDetails>(400)]
     [ProducesResponseType<ProblemDetails>(503)]
-    public async Task<ActionResult<Incident>> Create(CreateIncidentRequest request, CancellationToken cancellationToken) =>
-        StatusCode(201, await service.CreateAsync(request, cancellationToken));
+    public async Task<ActionResult<Incident>> Create(CreateIncidentRequest request, CancellationToken cancellationToken)
+    {
+        if (request.RequestPhotoUploadCapability)
+        {
+            if (!Request.IsHttps && !environment.IsDevelopment())
+                return StatusCode(503, new ProblemDetails { Status = 503, Title = "Photo uploads require HTTPS." });
+            capability.EnsureConfigured();
+            storage.EnsureConfigured();
+        }
+        var incident = await service.CreateAsync(request, cancellationToken);
+        if (request.RequestPhotoUploadCapability)
+        {
+            Response.Cookies.Append(ResidentUploadCapability.CookieName, capability.Create(incident.Id), new CookieOptions
+            {
+                HttpOnly = true,
+                IsEssential = true,
+                SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Strict,
+                Secure = Request.IsHttps,
+                Path = $"/api/public/incidents/{incident.Id}/attachments",
+                MaxAge = ResidentUploadCapability.Lifetime
+            });
+        }
+        return StatusCode(201, incident);
+    }
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<Incident>(200)]

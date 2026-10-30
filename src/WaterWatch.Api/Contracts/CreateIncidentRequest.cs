@@ -14,6 +14,7 @@ public sealed class CreateIncidentRequest : IValidatableObject
     public double? Latitude { get; init; }
     [Range(-180d, 180d)]
     public double? Longitude { get; init; }
+    public bool RequestPhotoUploadCapability { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

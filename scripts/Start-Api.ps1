@@ -1,5 +1,5 @@
 # Run from the repository root. Imports saved Windows user settings without printing them.
-foreach ($settingName in @('ConnectionStrings__WaterWatch','Operator__ApiKey','Operator__Identifier','Telemetry__IngestionKey')) {
+foreach ($settingName in @('ConnectionStrings__WaterWatch','Operator__ApiKey','Operator__Identifier','Telemetry__IngestionKey','Storage__SupabaseUrl','Storage__ServiceRoleKey','Storage__UploadCapabilityKey')) {
     if (-not [Environment]::GetEnvironmentVariable($settingName, 'Process')) {
         [Environment]::SetEnvironmentVariable($settingName, [Environment]::GetEnvironmentVariable($settingName, 'User'), 'Process')
     }

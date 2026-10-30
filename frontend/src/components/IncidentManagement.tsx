@@ -5,6 +5,7 @@ import { formatTimestamp, nextStatus, priorities, statusLabel } from '../lib/inc
 import type { Incident, IncidentEvent } from '../lib/incidents'
 import IncidentRecord from './IncidentRecord'
 import LocationPicker from './LocationPicker'
+import IncidentEvidence from './IncidentEvidence'
 
 export default function IncidentManagement({ initialIncident, onUpdated }: { initialIncident: Incident; onUpdated?: (timestamp: string) => void }) {
   const [incident, setIncident] = useState(initialIncident)
@@ -50,6 +51,7 @@ export default function IncidentManagement({ initialIncident, onUpdated }: { ini
     {error && <div className="error-banner" role="alert">{error} </div>}
     <div className="incident-detail-grid"><div className="incident-report-column"><IncidentRecord incident={incident} />
     {incident.latitude != null && incident.longitude != null && <section className="record-card"><h2>Reported location</h2><LocationPicker value={{ latitude: incident.latitude, longitude: incident.longitude }} onChange={() => {}} readOnly /></section>}
+    <IncidentEvidence incidentId={incident.id} />
     </div><div className="incident-action-column"><div className="management-grid">
       <form className="record-card management-form" onSubmit={statusSubmit} aria-label="Report progress">
         <h2>Report Status</h2><p>Current: <strong>{statusLabel(incident.status)}</strong></p>

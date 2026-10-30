@@ -1,3 +1,4 @@
+vi.mock('./IncidentEvidence', () => ({ default: () => <section aria-label="Incident evidence">Photos</section> }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

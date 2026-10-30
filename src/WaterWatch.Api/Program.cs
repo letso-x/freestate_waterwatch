@@ -17,6 +17,11 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddDbContext<WaterWatchDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IncidentService>();
 builder.Services.AddScoped<TelemetryService>();
+builder.Services.AddScoped<IncidentAttachmentService>();
+builder.Services.AddScoped<IncidentAttachmentStorage>();
+builder.Services.AddScoped<ResidentUploadCapability>();
+builder.Services.AddHttpClient("EvidenceStorage", client => client.Timeout = TimeSpan.FromSeconds(60))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddOptions<TelemetryOptions>().BindConfiguration("Telemetry")
     .Validate(options => options.IsValid(), "Configure valid telemetry measurement types and ranges.").ValidateOnStart();
 builder.Services.AddAuthentication(OperatorAuthenticationHandler.SchemeName)
@@ -32,7 +37,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddPolicy("MunicipalDashboard", policy =>
-    policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST", "PATCH").AllowAnyHeader()));
+    policy.WithOrigins(allowedOrigins).WithMethods("GET", "POST", "PATCH").AllowAnyHeader().AllowCredentials()));
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
