@@ -116,7 +116,7 @@ public sealed class IncidentApiTests
     }
 }
 
-internal sealed class ApiFactory(bool usePostgres = false, string? postgresConnection = null, System.Data.Common.DbConnection? sharedConnection = null, System.Data.Common.DbTransaction? sharedTransaction = null, string? sensorCredential = null) : WebApplicationFactory<Program>
+internal sealed class ApiFactory(bool usePostgres = false, string? postgresConnection = null, System.Data.Common.DbConnection? sharedConnection = null, System.Data.Common.DbTransaction? sharedTransaction = null, string? sensorCredential = null, bool localStaffAccess = false, string? remoteAddress = null, string environmentName = "Development") : WebApplicationFactory<Program>
 {
     public static readonly string OperatorKey = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     public static readonly string SensorKey = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -128,7 +128,9 @@ internal sealed class ApiFactory(bool usePostgres = false, string? postgresConne
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment(environmentName);
+        builder.UseSetting("Operator:LocalAccessEnabled", localStaffAccess.ToString());
+        if (remoteAddress is not null) builder.ConfigureServices(services => services.AddSingleton<Microsoft.AspNetCore.Hosting.IStartupFilter>(new TestRemoteAddressFilter(remoteAddress)));
         builder.UseSetting("Operator:ApiKey", OperatorKey);
         builder.UseSetting("Operator:Identifier", "test-operator");
         builder.UseSetting("Telemetry:IngestionKey", sensorCredential ?? SensorKey);
@@ -166,3 +168,14 @@ internal sealed class ApiFactory(bool usePostgres = false, string? postgresConne
 }
 
 
+
+internal sealed class TestRemoteAddressFilter(string address) : Microsoft.AspNetCore.Hosting.IStartupFilter
+{
+    public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next) => app => {
+        Microsoft.AspNetCore.Builder.UseExtensions.Use(app, async (context, proceed) => {
+            context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(address);
+            await proceed();
+        });
+        next(app);
+    };
+}

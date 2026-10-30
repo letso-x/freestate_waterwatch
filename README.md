@@ -177,3 +177,10 @@ Authenticated sensor ingestion, registered sensors, recent readings and suspecte
 See [sensor setup, serial protocol and hardware handoff](docs/TASK4_TELEMETRY.md) for exact API, frontend and bridge start commands, calibration, credentials and verification steps. No physical Arduino measurement has been verified yet.
 
 Verification on 30 October 2026: 75 API tests, 18 serial bridge tests and 50 frontend tests passed with zero failures/skips. API/bridge builds and the frontend production build passed. The additive telemetry migration was applied to Supabase; earlier migrations remain unchanged.
+
+
+## Local development access
+
+The dashboard now opens automatically on localhost in ASP.NET Development; no staff key is needed for refreshes or local testing. This requires Operator:LocalAccessEnabled (enabled in appsettings.Development.json), a loopback client and localhost host, and either no Origin or an explicitly allowed Vite origin. Local changes are recorded as local-staff. Nonlocal requests and non-Development environments retain staff credential checks. Set Operator__LocalAccessEnabled=false to require the key locally as well.
+
+Sensor ingestion still requires its separate saved server credential. No browser credential is generated or stored for automatic local access. Registration, telemetry, incident workflows and database migrations are otherwise unchanged.

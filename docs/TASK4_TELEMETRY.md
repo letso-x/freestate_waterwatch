@@ -27,7 +27,7 @@ npm.cmd --prefix frontend ci
 npm.cmd --prefix frontend run dev -- --host 127.0.0.1
 ```
 
-`frontend/.env` must retain `VITE_API_BASE_URL=http://localhost:5100`. Use the explicitly allowed Vite origin `http://localhost:5173`; existing CORS settings are unchanged. Sign in at `/operations` with the existing staff access key and choose **Sensor monitoring**. The API remains on port 5100 with the existing launch profile.
+`frontend/.env` must retain `VITE_API_BASE_URL=http://localhost:5100`. Use the explicitly allowed Vite origin `http://localhost:5173`; existing CORS settings are unchanged. Open `/operations/sensors` directly for local Development on localhost; staff-key entry is no longer required there. Remote access retains staff authentication. See the README’s local development access section. The API remains on port 5100 with the existing launch profile.
 
 ## Register and calibrate a sensor
 

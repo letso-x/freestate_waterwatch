@@ -17,6 +17,11 @@ public sealed class OperatorAuthenticationHandler(
     public const string SchemeName = "DemoOperator";
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        if (LocalStaffAccess.IsAllowed(Context, configuration, environment))
+        {
+            var localIdentity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "local-staff"), new Claim(ClaimTypes.Role, "Operator")], SchemeName);
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(localIdentity), SchemeName)));
+        }
         var header = Request.Headers.Authorization.ToString();
         if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             return Task.FromResult(AuthenticateResult.NoResult());
