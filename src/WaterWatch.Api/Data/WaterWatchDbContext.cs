@@ -7,6 +7,9 @@ public sealed class WaterWatchDbContext(DbContextOptions<WaterWatchDbContext> op
 {
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentEvent> IncidentEvents => Set<IncidentEvent>();
+    public DbSet<Sensor> Sensors => Set<Sensor>();
+    public DbSet<TelemetryReading> TelemetryReadings => Set<TelemetryReading>();
+    public DbSet<SensorAnomaly> SensorAnomalies => Set<SensorAnomaly>();
 
     private void EnforceAppendOnlyHistory()
     {
@@ -44,5 +47,30 @@ public sealed class WaterWatchDbContext(DbContextOptions<WaterWatchDbContext> op
         history.Property(x => x.Note).HasMaxLength(2400);
         history.Property(x => x.ActorIdentifier).HasMaxLength(120).IsRequired();
         history.HasIndex(x => new { x.IncidentId, x.CreatedAtUtc, x.Id });
+        var sensor = modelBuilder.Entity<Sensor>();
+        sensor.HasKey(x => x.Id);
+        sensor.HasIndex(x => x.SensorKey).IsUnique();
+        sensor.Property(x => x.SensorKey).HasMaxLength(64);
+        sensor.Property(x => x.Name).HasMaxLength(120);
+        sensor.Property(x => x.Location).HasMaxLength(300);
+        sensor.Property(x => x.MeasurementType).HasMaxLength(64);
+        sensor.Property(x => x.Unit).HasMaxLength(16);
+        sensor.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
+        sensor.Property(x => x.Direction).HasConversion<string>().HasMaxLength(16);
+        sensor.Property(x => x.Version).IsConcurrencyToken();
+        var reading = modelBuilder.Entity<TelemetryReading>();
+        reading.HasKey(x => x.Id);
+        reading.HasOne<Sensor>().WithMany().HasForeignKey(x => x.SensorId).OnDelete(DeleteBehavior.Restrict);
+        reading.HasIndex(x => new { x.SensorId, x.MeasurementId }).IsUnique();
+        reading.HasIndex(x => new { x.SensorId, x.MeasuredAtUtc });
+        reading.Property(x => x.MeasurementType).HasMaxLength(64);
+        reading.Property(x => x.Unit).HasMaxLength(16);
+        reading.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
+        var anomaly = modelBuilder.Entity<SensorAnomaly>();
+        anomaly.HasKey(x => x.Id);
+        anomaly.HasOne<Sensor>().WithMany().HasForeignKey(x => x.SensorId).OnDelete(DeleteBehavior.Restrict);
+        anomaly.HasIndex(x => x.SensorId).IsUnique().HasFilter("\"RecoveredAtUtc\" IS NULL");
+        anomaly.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
+        anomaly.Property(x => x.Direction).HasConversion<string>().HasMaxLength(16);
     }
 }

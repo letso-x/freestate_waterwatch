@@ -1,4 +1,5 @@
 import type { CreateIncidentRequest, FormErrors, Incident, IncidentEvent, PublicTracking } from './incidents'
+import type { Sensor, TelemetryReading } from './sensors'
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 const baseUrl = configuredBaseUrl?.replace(/\/+$/, '')
@@ -25,7 +26,7 @@ function endpoint(path: string): string {
 }
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
-  const privileged = path.startsWith('/api/incidents') && (options.method ?? 'GET') !== 'POST' || /\/api\/incidents\/[^/]+\/notes/.test(path)
+  const privileged = path.startsWith('/api/incidents') && (options.method ?? 'GET') !== 'POST' || /\/api\/incidents\/[^/]+\/notes/.test(path) || path.startsWith('/api/sensors')
   const headers = new Headers(options.headers)
   if (privileged && operatorToken) headers.set('Authorization', 'Bearer ' + operatorToken)
   let response: Response
@@ -88,3 +89,16 @@ export function updateStatus(id: string, status: string, note: string): Promise<
 export function updatePriority(id: string, priority: string, note: string): Promise<Incident> { return request('/api/incidents/' + encodeURIComponent(id) + '/priority', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority, note }) }) }
 export function updateAssignment(id: string, assignedTo: string, note: string): Promise<Incident> { return request('/api/incidents/' + encodeURIComponent(id) + '/assignment', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignedTo: assignedTo.trim() || null, note }) }) }
 export function addInternalNote(id: string, note: string): Promise<IncidentEvent> { return request('/api/incidents/' + encodeURIComponent(id) + '/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }) }) }
+
+export async function getSensors(signal?: AbortSignal): Promise<Sensor[]> {
+  const sensors: Sensor[] = []
+  for (let page = 1; ; page++) {
+    const batch = await request<Sensor[]>(`/api/sensors?page=${page}&pageSize=100`, { signal })
+    if (!Array.isArray(batch)) throw new ApiError('We couldn’t load the sensors. Please try again.')
+    sensors.push(...batch)
+    if (batch.length < 100) return sensors
+  }
+}
+export function getSensorReadings(id: string, signal?: AbortSignal): Promise<TelemetryReading[]> {
+  return request(`/api/sensors/${encodeURIComponent(id)}/readings?limit=60`, { signal })
+}

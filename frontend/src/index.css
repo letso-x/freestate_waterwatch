@@ -334,3 +334,44 @@ h1 > span { color: var(--text-muted); }
 .management-form .field-hint { font-size: 12px; }
 @media (max-width: 760px) { .staff-login { padding-top: 38px; } .public-main { padding-left: 20px; padding-right: 20px; } .page-heading h1 { font-size: 28px; } .metric-top { font-size: 11px; } .metric-card p { font-size: 10px; } .incident-main p { font-size: 11px; } .incident-location { padding-left: 0; } .sidebar .nav-item { font-size: 11px; } .page-footer { flex-direction: column; } }
 main:focus-visible { outline: none; }
+
+/* Sensor monitoring uses the existing municipal palette and card styles. */
+.sensor-main { max-width: 1400px; width: 100%; }
+.sensor-shell .page-heading { align-items: center; gap: 18px; }
+.sensor-grid { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.sensor-directory, .sensor-detail { min-width: 0; }
+.sensor-directory h2 { display: flex; align-items: center; gap: 9px; }
+.sensor-list { display: grid; gap: 12px; margin-top: 20px; }
+.sensor-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--surface); color: var(--text); text-align: left; width: 100%; }
+.sensor-choice.selected { border: 2px solid var(--brand-green); padding: 15px; background: var(--surface-green); }
+.sensor-choice > span { font-size: 12px; line-height: 1.7; }
+.sensor-choice strong { font-size: 14px; }
+.sensor-choice b { font-size: 19px; }
+.source-label { display: inline-block; font-size: 11px; font-weight: 650; padding: 4px 8px; border-radius: 5px; background: var(--surface-muted); color: var(--text-muted); }
+.source-Synthetic { background: var(--surface-orange); color: var(--brand-orange-ink); }
+.sensor-freshness { color: var(--brand-orange-ink); }
+.sensor-freshness.recent { color: var(--brand-green); }
+.sensor-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; border-block: 1px solid var(--border); padding: 22px 0; margin: 24px 0; }
+.sensor-summary dt { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.sensor-summary dd { margin: 0; font-size: 13px; line-height: 1.7; }
+.sensor-summary > div:first-child dd { font-size: 22px; font-weight: 700; }
+.sensor-detail > p, .sensor-anomalies > p { font-size: 13px; line-height: 1.8; color: var(--text-muted); }
+.sensor-empty { text-align: center; padding: 35px 20px; color: var(--text-muted); line-height: 1.8; }
+.sensor-empty svg { margin: 0 auto; }
+.sensor-anomalies { margin-bottom: 25px; }
+.sensor-anomalies h2 { font-size: 20px; }
+.anomaly-card { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px; border: 1px solid var(--border); border-left: 4px solid var(--brand-orange); border-radius: 8px; background: var(--surface); }
+.anomaly-card .source-label { margin-left: 10px; }
+.anomaly-card p { font-size: 12px; line-height: 1.8; margin: 8px 0 0; color: var(--text-muted); }
+.readings-chart { margin: 15px 0 25px; }
+.readings-chart svg { width: 100%; display: block; }
+.readings-chart text { fill: var(--text-muted); font-size: 11px; }
+.chart-grid { stroke: var(--border); stroke-dasharray: 4 4; }
+.readings-chart figcaption { font-size: 11px; line-height: 1.8; color: var(--text-muted); }
+.readings-table-wrap { overflow-x: auto; }
+.readings-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+.readings-table caption { text-align: left; margin-bottom: 12px; color: var(--text-muted); }
+.readings-table th, .readings-table td { padding: 14px 8px; border-bottom: 1px solid var(--border); line-height: 1.7; }
+.readings-table small { display: block; font-size: 10px; color: var(--text-muted); }
+@media (max-width: 900px) { .sensor-grid { grid-template-columns: 1fr; } .sensor-list { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); } }
+@media (max-width: 600px) { .sensor-summary { grid-template-columns: 1fr; gap: 14px; } .sensor-detail, .sensor-directory { padding: 18px; } .anomaly-card { align-items: start; flex-direction: column; } .sensor-shell .page-heading { align-items: start; flex-direction: column; } }

@@ -16,9 +16,16 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddDbContext<WaterWatchDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IncidentService>();
+builder.Services.AddScoped<TelemetryService>();
+builder.Services.AddOptions<TelemetryOptions>().BindConfiguration("Telemetry")
+    .Validate(options => options.IsValid(), "Configure valid telemetry measurement types and ranges.").ValidateOnStart();
 builder.Services.AddAuthentication(OperatorAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, SensorAuthenticationHandler>(SensorAuthenticationHandler.SchemeName, _ => { })
     .AddScheme<AuthenticationSchemeOptions, OperatorAuthenticationHandler>(OperatorAuthenticationHandler.SchemeName, _ => { });
-builder.Services.AddAuthorization(options => options.AddPolicy("Operator", policy => policy.RequireAuthenticatedUser().RequireRole("Operator")));
+builder.Services.AddAuthorization(options => {
+    options.AddPolicy("Operator", policy => policy.RequireAuthenticatedUser().RequireRole("Operator"));
+    options.AddPolicy("SensorIngestion", policy => policy.AddAuthenticationSchemes(SensorAuthenticationHandler.SchemeName).RequireAuthenticatedUser().RequireRole("Sensor"));
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();

@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/WaterWatch.Api/WaterWatch.Api.csproj" />
+    <Project Path="src/WaterWatch.SerialBridge/WaterWatch.SerialBridge.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WaterWatch.Api.Tests/WaterWatch.Api.Tests.csproj" />
+    <Project Path="tests/WaterWatch.SerialBridge.Tests/WaterWatch.SerialBridge.Tests.csproj" />
   </Folder>
 </Solution>

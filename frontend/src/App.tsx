@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import OperationsDashboard from './pages/OperationsDashboard'
 import { PublicReport, ReportSuccess, TrackReport } from './pages/PublicPortal'
 import IncidentDetails from './pages/IncidentDetails'
+import SensorMonitoring from './pages/SensorMonitoring'
 import PublicLayout from './components/PublicLayout'
 import { OperatorProvider, OperatorGate } from './components/OperatorAccess'
 
@@ -19,6 +20,7 @@ export function AppRoutes() {
     <Route path="/report/success" element={<ReportSuccess />} />
     <Route path="/track" element={<TrackReport />} />
     <Route path="/operations" element={<OperatorGate><OperationsDashboard /></OperatorGate>} />
+    <Route path="/operations/sensors" element={<OperatorGate><SensorMonitoring /></OperatorGate>} />
     <Route path="/operations/incidents/:id" element={<OperatorGate><IncidentDetails /></OperatorGate>} />
     <Route path="*" element={<PublicLayout><h1>Page not found</h1><p>Choose a WaterWatch workspace to continue.</p><Link to="/report" className="button button-primary">Report a problem</Link> <Link to="/operations" className="button button-secondary">Water management</Link></PublicLayout>} />
   </Routes></>

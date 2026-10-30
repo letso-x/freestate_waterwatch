@@ -135,11 +135,210 @@ namespace WaterWatch.Api.Data.Migrations
                     b.ToTable("IncidentEvents");
                 });
 
+            modelBuilder.Entity("WaterWatch.Api.Models.Sensor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Baseline")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("ConsecutiveAbnormal")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("LastMeasuredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("LatestValue")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("MeasurementType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<double>("MinimumDeviation")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("RequiredConsecutive")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SensorKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("StaleAfterSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("Threshold")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SensorKey")
+                        .IsUnique();
+
+                    b.ToTable("Sensors");
+                });
+
+            modelBuilder.Entity("WaterWatch.Api.Models.SensorAnomaly", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Baseline")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("ConsecutiveReadings")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<double>("MinimumDeviation")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("RecoveredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SensorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Threshold")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TriggerValue")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SensorId")
+                        .IsUnique()
+                        .HasFilter("\"RecoveredAtUtc\" IS NULL");
+
+                    b.ToTable("SensorAnomalies");
+                });
+
+            modelBuilder.Entity("WaterWatch.Api.Models.TelemetryReading", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAbnormal")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("MeasuredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MeasurementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MeasurementType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SensorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SensorId", "MeasuredAtUtc");
+
+                    b.HasIndex("SensorId", "MeasurementId")
+                        .IsUnique();
+
+                    b.ToTable("TelemetryReadings");
+                });
+
             modelBuilder.Entity("WaterWatch.Api.Models.IncidentEvent", b =>
                 {
                     b.HasOne("WaterWatch.Api.Models.Incident", null)
                         .WithMany()
                         .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WaterWatch.Api.Models.SensorAnomaly", b =>
+                {
+                    b.HasOne("WaterWatch.Api.Models.Sensor", null)
+                        .WithMany()
+                        .HasForeignKey("SensorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WaterWatch.Api.Models.TelemetryReading", b =>
+                {
+                    b.HasOne("WaterWatch.Api.Models.Sensor", null)
+                        .WithMany()
+                        .HasForeignKey("SensorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, createIncident, getIncident, getIncidents, getEvents, getPublicTracking, setOperatorToken, clearOperatorToken } from './api'
+import { ApiError, createIncident, getIncident, getIncidents, getEvents, getPublicTracking, getSensors, getSensorReadings, setOperatorToken, clearOperatorToken } from './api'
 import type { Incident } from './incidents'
 
 const row = (id: number): Incident => ({
@@ -9,6 +9,13 @@ const row = (id: number): Incident => ({
 afterEach(() => { vi.unstubAllGlobals(); clearOperatorToken() })
 
 describe('API client', () => {
+  it('authenticates sensor reads with the staff token only', async () => {
+    const fetch = vi.fn().mockImplementation(async () => Response.json([])); vi.stubGlobal('fetch', fetch)
+    setOperatorToken('staff-test-token')
+    await getSensors(); await getSensorReadings('sensor-id')
+    expect(fetch).toHaveBeenCalledWith('http://localhost:5100/api/sensors?page=1&pageSize=100', expect.objectContaining({ headers: { authorization: 'Bearer staff-test-token' } }))
+    expect(fetch).toHaveBeenCalledWith('http://localhost:5100/api/sensors/sensor-id/readings?limit=60', expect.objectContaining({ headers: { authorization: 'Bearer staff-test-token' } }))
+  })
   it('fetches every page and deduplicates records', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(Response.json(Array.from({ length: 100 }, (_, id) => row(id))))
       .mockResolvedValueOnce(Response.json([row(99), row(100)]))

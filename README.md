@@ -168,3 +168,12 @@ See [revision scope and verification](docs/TASK2_REVISION.md) for the remaining 
 ## Task 3 verification — 30 October 2026
 
 Backend: 48 tests passed (0 failed/skipped), build 0 warnings/errors. Frontend: 43 tests passed, production build passed. Incremental lifecycle/history migration applied to Supabase. A real persisted HTTP workflow and full API/frontend process restart verification both passed, including public/private timeline separation and unauthorized access checks. Browser-use webview attachment failed, so browser/device QA remains unverified. See [Task 3 workflow, commands and limitations](docs/TASK3_WORKFLOW.md).
+
+
+## Task 4 — sensor telemetry
+
+Authenticated sensor ingestion, registered sensors, recent readings and suspected anomalies now run alongside the existing incident workflows. The C# USB serial bridge forwards Arduino measurements; Sensor Monitoring is available to signed-in staff at /operations/sensors.
+
+See [sensor setup, serial protocol and hardware handoff](docs/TASK4_TELEMETRY.md) for exact API, frontend and bridge start commands, calibration, credentials and verification steps. No physical Arduino measurement has been verified yet.
+
+Verification on 30 October 2026: 75 API tests, 18 serial bridge tests and 50 frontend tests passed with zero failures/skips. API/bridge builds and the frontend production build passed. The additive telemetry migration was applied to Supabase; earlier migrations remain unchanged.

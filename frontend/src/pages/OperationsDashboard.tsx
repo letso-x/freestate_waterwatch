@@ -78,6 +78,7 @@ export default function OperationsDashboard() {
       <div className="workspace-label">WATER MANAGEMENT</div>
       <nav>
         <a href="#main-content" className="nav-item active" aria-current="page"><LayoutDashboard size={18} />Reports<span className="nav-dot" /></a>
+        <Link className="nav-item" to="/operations/sensors"><Activity size={18} />Sensor monitoring</Link>
         <Link className="nav-item" to="/report"><Droplets size={18} />Resident portal</Link>
       </nav>
       <div className="sidebar-bottom">
