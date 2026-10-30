@@ -31,5 +31,16 @@ public sealed class RegisterSensorRequest
 
 public sealed record SensorSummary(Guid Id, string SensorKey, string Name, string Location, string MeasurementType,
     string Unit, TelemetrySource Source, double? LatestValue, DateTime? LastMeasuredAtUtc, DateTime? LastReceivedAtUtc,
-    int StaleAfterSeconds, SensorAnomaly? ActiveAnomaly);
+    int StaleAfterSeconds, SensorAnomaly? ActiveAnomaly, SensorAnomaly? LastRecoveredAnomaly = null);
 public sealed record IngestionResult(TelemetryReading Reading, bool Duplicate);
+
+public sealed class SensorCalibrationRequest
+{
+    [Required, RegularExpression("^[a-z0-9][a-z0-9-]{0,63}$")] public string SensorKey { get; set; } = "";
+    [Required] public Guid? ExpectedVersion { get; set; }
+    [Required] public double? Baseline { get; set; }
+    [Required] public double? Threshold { get; set; }
+    [Required] public double? MinimumDeviation { get; set; }
+    [Required] public ThresholdDirection? Direction { get; set; }
+    [Range(2, 100)] public int RequiredConsecutive { get; set; } = 2;
+}

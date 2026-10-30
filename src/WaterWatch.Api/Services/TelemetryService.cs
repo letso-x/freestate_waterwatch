@@ -33,6 +33,35 @@ public sealed class TelemetryService(WaterWatchDbContext db, IOptions<TelemetryO
         return sensor;
     }
 
+    public async Task<Sensor> GetSensorAsync(Guid id, CancellationToken ct) =>
+        await db.Sensors.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new IncidentWorkflowException(404, "Sensor not found.");
+
+    public async Task<Sensor> CalibrateAsync(Guid id, SensorCalibrationRequest input, CancellationToken ct)
+    {
+        await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
+        var sensor = db.Database.IsNpgsql()
+            ? await db.Sensors.FromSqlInterpolated($"SELECT * FROM \"Sensors\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
+            : await db.Sensors.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (sensor is null) throw new IncidentWorkflowException(404, "Sensor not found.");
+        if (sensor.SensorKey != input.SensorKey) throw new IncidentWorkflowException(400, "The sensor reference does not match the intended sensor.");
+        if (sensor.Version != input.ExpectedVersion) throw new IncidentWorkflowException(409, "The sensor changed. Read its latest settings before updating calibration.");
+        var type = Definition(sensor.MeasurementType);
+        var baseline = input.Baseline!.Value; var threshold = input.Threshold!.Value; var deviation = input.MinimumDeviation!.Value;
+        if (!double.IsFinite(baseline) || !double.IsFinite(threshold) || !double.IsFinite(deviation) ||
+            baseline < type.Minimum || baseline > type.Maximum || threshold < type.Minimum || threshold > type.Maximum ||
+            deviation <= 0 || deviation > type.Maximum - type.Minimum ||
+            (input.Direction == ThresholdDirection.Above ? threshold <= baseline : threshold >= baseline))
+            throw new IncidentWorkflowException(400, "Calibration must use the configured measurement range, a positive deviation and a threshold on the selected side of the baseline.");
+        sensor.Baseline = baseline; sensor.Threshold = threshold; sensor.MinimumDeviation = deviation;
+        sensor.Direction = input.Direction!.Value; sensor.RequiredConsecutive = input.RequiredConsecutive;
+        // Start fresh evidence under the new rule. Historical readings and anomaly snapshots are untouched.
+        sensor.ConsecutiveAbnormal = 0; sensor.Version = Guid.NewGuid();
+        await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
+        return sensor;
+    }
+
     public async Task<IngestionResult> IngestAsync(TelemetryRequest input, CancellationToken ct)
     {
         var type = Definition(input.MeasurementType);
@@ -90,8 +119,10 @@ public sealed class TelemetryService(WaterWatchDbContext db, IOptions<TelemetryO
         var sensors = await db.Sensors.AsNoTracking().OrderBy(x => x.SensorKey).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         var ids = sensors.Select(x => x.Id).ToArray();
         var anomalies = await db.SensorAnomalies.AsNoTracking().Where(x => ids.Contains(x.SensorId) && x.RecoveredAtUtc == null).ToListAsync(ct);
+        var recovered = await db.SensorAnomalies.AsNoTracking().Where(x => ids.Contains(x.SensorId) && x.RecoveredAtUtc != null &&
+            !db.SensorAnomalies.Any(other => other.SensorId == x.SensorId && other.RecoveredAtUtc > x.RecoveredAtUtc)).ToListAsync(ct);
         return sensors.Select(x => new SensorSummary(x.Id, x.SensorKey, x.Name, x.Location, x.MeasurementType, x.Unit, x.Source,
-            x.LatestValue, x.LastMeasuredAtUtc, x.LastReceivedAtUtc, x.StaleAfterSeconds, anomalies.SingleOrDefault(a => a.SensorId == x.Id))).ToList();
+            x.LatestValue, x.LastMeasuredAtUtc, x.LastReceivedAtUtc, x.StaleAfterSeconds, anomalies.SingleOrDefault(a => a.SensorId == x.Id), recovered.SingleOrDefault(a => a.SensorId == x.Id))).ToList();
     }
 
     public async Task<List<TelemetryReading>> ReadingsAsync(Guid id, int limit, CancellationToken ct)

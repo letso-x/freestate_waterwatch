@@ -10,10 +10,10 @@ import type { Sensor, TelemetryReading } from '../lib/sensors'
 vi.mock('../lib/api', () => ({ getSensors: vi.fn(), getSensorReadings: vi.fn() }))
 const time = new Date().toISOString()
 const sensor: Sensor = { id: 'sensor-1', sensorKey: 'bench-01', name: 'Moisture bench', location: 'Testing bench',
-  measurementType: 'soil-moisture-raw', unit: 'adc', source: 'Synthetic', latestValue: 200,
+  measurementType: 'soil-moisture-raw', unit: 'adc', source: 'Synthetic', latestValue: 561,
   lastMeasuredAtUtc: time, lastReceivedAtUtc: time, staleAfterSeconds: 120, activeAnomaly: null }
 const readings: TelemetryReading[] = [0, 1].map(index => ({ id: `reading-${index}`, sensorId: sensor.id, measurementId: `measurement-${index}`,
-  measurementType: sensor.measurementType, unit: 'adc', source: 'Synthetic', value: 200 + index,
+  measurementType: sensor.measurementType, unit: 'adc', source: 'Synthetic', value: index === 0 ? 223 : 392,
   measuredAtUtc: new Date(Date.parse(time) - index * 5000).toISOString(), receivedAtUtc: time, isAbnormal: false }))
 beforeEach(() => { vi.resetAllMocks(); vi.mocked(getSensors).mockResolvedValue([]); vi.mocked(getSensorReadings).mockResolvedValue(readings) })
 function open() { return render(<MemoryRouter><SensorMonitoring /></MemoryRouter>) }
@@ -26,10 +26,14 @@ describe('sensor monitoring', () => {
   })
   it('shows actual response values, chart and synthetic labels', async () => {
     vi.mocked(getSensors).mockResolvedValue([sensor]); open()
-    expect(await screen.findByRole('img', { name: 'Recent measurements in adc' })).toBeInTheDocument()
-    expect(screen.getAllByText('200 adc').length).toBeGreaterThan(0)
+    expect(await screen.findByRole('img', { name: 'Relative Wetness (%) historical readings' })).toBeInTheDocument()
+    expect(screen.getAllByText('100%').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Synthetic test data').length).toBeGreaterThan(0)
     expect(screen.queryByText('Physical sensor')).not.toBeInTheDocument()
+    expect(screen.getByRole('table')).toHaveTextContent('+50 pp')
+    expect(screen.getByRole('img')).toHaveTextContent('50%–100%')
+    expect(document.body.textContent).not.toMatch(/ADC|raw sensor|baseline deviation/i)
+    expect(readings[0].value).toBe(223)
     expect(getSensorReadings).toHaveBeenCalledWith('sensor-1', expect.any(AbortSignal))
     expect(screen.getByRole('table')).toHaveTextContent('Latest measurements · Synthetic test data')
   })
@@ -38,7 +42,9 @@ describe('sensor monitoring', () => {
       id: 'anomaly-1', sensorId: 'sensor-2', startedAtUtc: time, recoveredAtUtc: null, triggerValue: 200,
       threshold: 300, baseline: 600, minimumDeviation: 150, direction: 'Below', consecutiveReadings: 3, source: 'Physical' } }])
     open(); await screen.findByRole('region', { name: 'Suspected anomalies' })
-    expect(screen.getByText(/They do not confirm a water leak/)).toBeInTheDocument()
+    expect(screen.getByText('Investigate the readings below.')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Suspected anomalies' })).toHaveTextContent('Relative Wetness: 100%')
+    expect(document.body.textContent).not.toMatch(/ADC|baseline deviation|threshold of/i)
     await userEvent.setup().click(screen.getByRole('button', { name: 'View readings' }))
     expect(getSensorReadings).toHaveBeenLastCalledWith('sensor-2', expect.any(AbortSignal))
     expect(screen.getAllByText('Physical sensor').length).toBeGreaterThan(0)
@@ -61,4 +67,14 @@ describe('sensor monitoring', () => {
     expect(freshness({ ...sensor, lastMeasuredAtUtc: null }, now)).toBe('No readings')
     expect(freshness({ ...sensor, lastMeasuredAtUtc: new Date(now - 121000).toISOString() }, now)).toBe('No recent readings')
   })
+})
+
+it('labels the physical reference index correctly and shows a recovered anomaly timestamp', async () => {
+  vi.mocked(getSensors).mockResolvedValue([{ ...sensor, sensorKey: 'arduino-moisture-01', source: 'Physical', latestValue: 223,
+    lastRecoveredAnomaly: { id: 'recovered-1', sensorId: sensor.id, startedAtUtc: time, recoveredAtUtc: time, triggerValue: 223, baseline: 561, threshold: 350, minimumDeviation: 150, direction: 'Below', consecutiveReadings: 2, source: 'Physical' } }])
+  open()
+  expect((await screen.findAllByText('100%')).length).toBeGreaterThan(0)
+  expect(screen.getAllByText('Relative Wetness (%)').length).toBeGreaterThan(0)
+  expect(screen.getByText(/Recovered/)).toHaveTextContent('SAST')
+  expect(screen.queryByText(/volumetric water content|leak probability|calibration limitations/i)).not.toBeInTheDocument()
 })

@@ -32,6 +32,13 @@ public sealed class SensorsController(TelemetryService service) : ControllerBase
     public async Task<ActionResult<Sensor>> Register(RegisterSensorRequest input, CancellationToken ct) =>
         StatusCode(201, await service.RegisterAsync(input, ct));
 
+    [HttpGet("{id:guid}"), ProducesResponseType<Sensor>(200)]
+    public async Task<ActionResult<Sensor>> Details(Guid id, CancellationToken ct) => Ok(await service.GetSensorAsync(id, ct));
+
+    [HttpPatch("{id:guid}/calibration"), ProducesResponseType<Sensor>(200)]
+    public async Task<ActionResult<Sensor>> Calibrate(Guid id, SensorCalibrationRequest input, CancellationToken ct) =>
+        Ok(await service.CalibrateAsync(id, input, ct));
+
     [HttpGet("{id:guid}/readings"), ProducesResponseType<List<TelemetryReading>>(200)]
     public async Task<ActionResult<List<TelemetryReading>>> Readings(Guid id, [FromQuery, Range(1, 200)] int limit = 60,
         CancellationToken ct = default) => Ok(await service.ReadingsAsync(id, limit, ct));
